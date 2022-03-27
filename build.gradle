@@ -1,14 +1,17 @@
+import org.ajoberstar.grgit.Grgit
+
 buildscript {
     ext {
         grailsVersion = project.grailsVersion
     }
     repositories {
         mavenLocal()
+        maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.grails.org/grails/core" }
     }
     dependencies {
         classpath "org.grails:grails-gradle-plugin:$grailsVersion"
-        classpath 'org.ajoberstar:gradle-git:1.4.2'
+        classpath "org.ajoberstar:gradle-git:1.4.2"
     }
 }
 
@@ -26,7 +29,7 @@ apply plugin: 'idea'
 apply plugin: "spring-boot"
 apply plugin: "org.grails.grails-plugin"
 apply plugin: "org.grails.grails-gsp"
-apply plugin: 'org.ajoberstar.grgit'
+apply plugin: "org.ajoberstar.grgit"
 
 // Used for publishing to central repository, remove if not needed
 apply from: 'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/grailsCentralPublishing.gradle'
@@ -74,6 +77,29 @@ dependencies {
 
 task wrapper(type: Wrapper) {
     gradleVersion = gradleWrapperVersion
+}
+
+javadoc {
+    source = sourceSets.main.allJava
+    classpath = configurations.compileClasspath
+
+    options
+            {
+                setMemberLevel JavadocMemberLevel.PUBLIC
+                setAuthor true
+
+                links "https://docs.oracle.com/javase/8/docs/api/"
+            }
+}
+
+task sourceJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allJava
+}
+
+task packageJavadoc(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
 }
 
 def repo = Grgit.open('.')
