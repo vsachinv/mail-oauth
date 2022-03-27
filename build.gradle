@@ -79,27 +79,9 @@ task wrapper(type: Wrapper) {
     gradleVersion = gradleWrapperVersion
 }
 
-javadoc {
-    source = sourceSets.main.allJava
-    classpath = configurations.compileClasspath
-
-    options
-            {
-                setMemberLevel JavadocMemberLevel.PUBLIC
-                setAuthor true
-
-                links "https://docs.oracle.com/javase/8/docs/api/"
-            }
-}
-
 task sourceJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allJava
-}
-
-task packageJavadoc(type: Jar) {
-    from javadoc
-    classifier = 'javadoc'
 }
 
 def repo = Grgit.open('.')
@@ -132,6 +114,7 @@ publishing {
                 }
             }
             from components.java
+            artifact sourceJar
         }
     }
     repositories {
