@@ -81,7 +81,7 @@ task wrapper(type: Wrapper) {
 
 task sourceJar(type: Jar) {
     classifier = 'sources'
-    from sourceSets.main.allJava
+    from sourceSets.main.allSource
 }
 
 def repo = Grgit.open('.')
