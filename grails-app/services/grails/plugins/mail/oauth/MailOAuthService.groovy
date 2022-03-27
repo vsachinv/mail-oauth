@@ -1,0 +1,75 @@
+package grails.plugins.mail.oauth
+
+import com.github.scribejava.apis.MicrosoftAzureActiveDirectory20Api
+import com.github.scribejava.core.builder.ServiceBuilder
+import com.github.scribejava.core.model.OAuth2AccessToken
+import com.github.scribejava.core.oauth.OAuth20Service
+import grails.config.Config
+import grails.core.support.GrailsConfigurationAware
+import grails.plugins.mail.oauth.token.OAuthToken
+
+class MailOAuthService implements GrailsConfigurationAware {
+
+    def tokenStore
+
+    private String clientId
+    private String clientSecret
+    private String apiScope
+    private String callbackUrl
+    private String tenantId
+    private OAuth20Service oAuth20Service
+    private String state
+
+    String generateAuthCodeURL() {
+        this.state = UUID.randomUUID().toString().replaceAll('-', '')
+        return oAuth20Service.getAuthorizationUrl(this.state)
+    }
+
+    synchronized OAuthToken generateAccessToken(String code, String state) {
+        if (state != this.state) {
+            throw new Exception('State mismatch. State sent is different from what received')
+        }
+        OAuth2AccessToken token = oAuth20Service.getAccessToken(code)
+        OAuthToken authToken = new OAuthToken(token)
+        tokenStore.saveToken(authToken)
+        return authToken
+    }
+
+    synchronized OAuthToken refreshAccessToken(OAuthToken oldToken) {
+        log.debug('Refreshing token')
+        OAuth2AccessToken token = oAuth20Service.refreshAccessToken(oldToken.refreshToken)
+        OAuthToken authToken = new OAuthToken(token)
+        tokenStore.saveToken(authToken)
+        return authToken
+    }
+
+    String getAccessToken() {
+        OAuthToken oAuthToken = tokenStore.getToken()
+        if (!oAuthToken) {
+            log.error("No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
+            return null
+        }
+        if (oAuthToken.expireAt > new Date()) {
+            return oAuthToken.accessToken
+        }
+        oAuthToken = refreshAccessToken(oAuthToken)
+        return oAuthToken.accessToken
+    }
+
+    void revokeToken() {
+        tokenStore.revokeToken()
+    }
+
+    @Override
+    void setConfiguration(Config co) {
+        this.clientId = co.getProperty('grails.mail.oAuth.client_id')
+        this.clientSecret = co.getProperty('grails.mail.oAuth.secret_val')
+        this.apiScope = co.getProperty('grails.mail.oAuth.api_scope')
+        this.callbackUrl = co.getProperty('grails.mail.oAuth.callback_url')
+        this.tenantId = co.getProperty('grails.mail.oAuth.tenant_id')
+        this.oAuth20Service = new ServiceBuilder(this.clientId)
+                .apiSecret(this.clientSecret).defaultScope(this.apiScope)
+                .callback(this.callbackUrl)
+                .build(MicrosoftAzureActiveDirectory20Api.custom(this.tenantId))
+    }
+}
