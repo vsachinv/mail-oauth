@@ -13,7 +13,7 @@ grails {
             }
             redirect.uri = '/mailOAuth/index'
             graph {
-                eanbled = false
+                enabled = false
                 attachmentMax = 3 //MB
             }
         }

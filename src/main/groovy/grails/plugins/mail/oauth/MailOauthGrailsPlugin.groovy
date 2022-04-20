@@ -63,7 +63,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 
             tokenStore(MemoryTokenStore)
 
-            if (mailConfig.oAuth.graph.eanbled) {
+            if (mailConfig.oAuth.graph.enabled) {
                 tokenBasedAuthCredential(TokenBasedAuthCredential) {
                     mailOAuthService = ref('mailOAuthService')
                 }
@@ -99,7 +99,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 
     private def configureMailOAuthSender(builder, config) {
         builder.with {
-            if (config.oAuth.graph.eanbled) {
+            if (config.oAuth.graph.enabled) {
                 mailSender(GraphMailSenderImpl) {
                     defaultEncoding = "utf-8"
                     if (config.username)
