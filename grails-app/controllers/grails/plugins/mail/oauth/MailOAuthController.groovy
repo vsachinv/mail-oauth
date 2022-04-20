@@ -1,8 +1,9 @@
 package grails.plugins.mail.oauth
 
 import grails.util.Holders
+import groovy.util.logging.Slf4j
 
-
+@Slf4j
 class MailOAuthController {
 
     String uri = Holders.config.grails.mail.oAuth.redirect.uri

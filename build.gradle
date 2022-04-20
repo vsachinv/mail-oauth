@@ -20,20 +20,15 @@ plugins {
     id "com.jfrog.bintray" version "1.2"
 }
 
-version "0.1"
+version "1.0-M1"
 group "org.grails.plugins"
 
-apply plugin: 'maven-publish'
-apply plugin: 'eclipse'
-apply plugin: 'idea'
-apply plugin: "spring-boot"
+apply plugin: "eclipse"
+apply plugin: "idea"
 apply plugin: "org.grails.grails-plugin"
+apply plugin: "org.grails.grails-plugin-publish"
 apply plugin: "org.grails.grails-gsp"
 apply plugin: "org.ajoberstar.grgit"
-
-// Used for publishing to central repository, remove if not needed
-apply from: 'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/grailsCentralPublishing.gradle'
-apply from: 'https://raw.githubusercontent.com/grails/grails-profile-repository/master/profiles/plugin/templates/bintrayPublishing.gradle'
 
 ext {
     grailsVersion = project.grailsVersion
@@ -73,6 +68,8 @@ dependencies {
     compile 'org.grails.plugins:mail:2.0.1'
     compile 'com.github.scribejava:scribejava-core:8.3.1'
     compile 'com.github.scribejava:scribejava-apis:8.3.1'
+    compile group: 'io.projectreactor', name: 'reactor-core', version: '3.4.14'
+    compile 'com.microsoft.graph:microsoft-graph:5.+'
 }
 
 task wrapper(type: Wrapper) {

@@ -12,6 +12,10 @@ grails {
                 refresh.time.difference = 600 //if less than 10mins then refresh
             }
             redirect.uri = '/mailOAuth/index'
+            graph {
+                eanbled = false
+                attachmentMax = 3 //MB
+            }
         }
     }
 }
