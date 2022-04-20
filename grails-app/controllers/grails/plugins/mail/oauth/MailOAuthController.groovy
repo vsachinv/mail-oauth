@@ -64,13 +64,18 @@ class MailOAuthController {
     }
 
     def sendTestMail(String email) {
-        sendMail {
-            multipart false
-            to email
-            subject 'test email'
-            body "test mail created at ${new Date()}"
+        try {
+            sendMail {
+                multipart false
+                to email
+                subject 'test email'
+                body "test mail created at ${new Date()}"
+            }
+            flash.message = "Test mail sent to ${email}"
+        } catch (Exception ex) {
+            log.error('Exception while sending test email due to', ex)
+            flash.error = "Test mail failed due to ${ex.message}"
         }
-        flash.message = "Test mail sent to ${email}"
         redirect(uri: uri)
     }
 
