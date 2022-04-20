@@ -68,7 +68,7 @@ dependencies {
     compile 'org.grails.plugins:mail:2.0.1'
     compile 'com.github.scribejava:scribejava-core:8.3.1'
     compile 'com.github.scribejava:scribejava-apis:8.3.1'
-    compile group: 'io.projectreactor', name: 'reactor-core', version: '3.4.14'
+    runtime group: 'io.projectreactor', name: 'reactor-core', version: '3.4.14'
     compile 'com.microsoft.graph:microsoft-graph:5.+'
 }
 
