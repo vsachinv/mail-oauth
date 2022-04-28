@@ -5,12 +5,14 @@ import com.microsoft.graph.models.EmailAddress
 import com.microsoft.graph.models.ItemBody
 import com.microsoft.graph.models.Message
 import com.microsoft.graph.models.Recipient
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.springframework.mail.MailMessage
 import org.springframework.mail.MailParseException
 import java.time.ZoneOffset
 
 @Slf4j
+@CompileStatic
 class GraphMessage extends Message implements MailMessage {
 
     void setFrom(Recipient from) throws MailParseException {
@@ -70,7 +72,7 @@ class GraphMessage extends Message implements MailMessage {
         LinkedList<Recipient> toRecipientsList = new LinkedList<Recipient>()
         to.each { it ->
             Recipient toRecipients = new Recipient()
-            toRecipients.emailAddress = new EmailAddress(address: it)
+            toRecipients.emailAddress = new EmailAddress(address: it as String)
             toRecipientsList.add(toRecipients)
         }
         super.toRecipients = toRecipientsList
@@ -97,7 +99,7 @@ class GraphMessage extends Message implements MailMessage {
         LinkedList<Recipient> ccRecipientsList = new LinkedList<Recipient>()
         cc.each { it ->
             Recipient toRecipients = new Recipient()
-            toRecipients.emailAddress = new EmailAddress(address: it)
+            toRecipients.emailAddress = new EmailAddress(address: it as String)
             ccRecipientsList.add(toRecipients)
         }
         super.ccRecipients = ccRecipientsList
@@ -123,7 +125,7 @@ class GraphMessage extends Message implements MailMessage {
         LinkedList<Recipient> bccRecipientsList = new LinkedList<Recipient>()
         bcc.each { it ->
             Recipient toRecipients = new Recipient()
-            toRecipients.emailAddress = new EmailAddress(address: it)
+            toRecipients.emailAddress = new EmailAddress(address: it as String)
             bccRecipientsList.add(toRecipients)
         }
         super.bccRecipients = bccRecipientsList

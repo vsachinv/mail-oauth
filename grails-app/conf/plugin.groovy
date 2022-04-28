@@ -17,5 +17,15 @@ grails {
                 attachmentMax = 3 //MB
             }
         }
+        //Refer examples folder for usage of reader functions
+        reader {
+            enabled = false
+            graph {
+                enabled = false
+            }
+            imap {
+                enabled = false
+            }
+        }
     }
 }

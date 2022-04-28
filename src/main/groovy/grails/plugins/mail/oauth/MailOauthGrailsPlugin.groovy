@@ -1,9 +1,13 @@
 package grails.plugins.mail.oauth
 
+import com.azure.core.credential.BasicAuthenticationCredential
 import grails.plugins.*
 import grails.plugins.mail.graph.GraphApiClient
+import grails.plugins.mail.graph.reader.GraphEmailReaderService
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
+import grails.plugins.mail.graph.token.InMemoryReaderTokenStoreService
+import grails.plugins.mail.imap.reader.ImapEmailReaderService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 
 import grails.plugins.mail.oauth.token.MemoryTokenStore
@@ -72,6 +76,26 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 
                 mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
                     it.autowire = true
+                }
+            }
+
+            if (mailConfig.reader.enabled) {
+                readerTokenStoreService(InMemoryReaderTokenStoreService)
+                if (mailConfig.reader.graph.enabled) {
+                    println "Enable mail-reader graph configuration"
+                    if (!mailConfig.oAuth.graph.enabled) {
+                        graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '')
+                    }
+                    graphEmailReaderService(GraphEmailReaderService) {
+                        graphApiClient = ref('graphApiClient')
+                        readerTokenStoreService = ref('readerTokenStoreService')
+                    }
+                }
+                if (mailConfig.reader.imap.enabled) {
+                    println "Enable mail-reader imap configuration"
+                    imapEmailReaderService(ImapEmailReaderService) {
+                        readerTokenStoreService = ref('readerTokenStoreService')
+                    }
                 }
             }
 

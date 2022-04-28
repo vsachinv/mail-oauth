@@ -60,7 +60,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
     }
 
     private void processAttachmentAndSendMsg(Message message, List<FileAttachment> attachmentList) throws GraphFatalServiceException {
-        GraphServiceClient graphServiceClient = graphApiClient.graphServiceClient
+        GraphServiceClient graphServiceClient = graphApiClient.standardMailClient
         message.attachments = null
         //create a draft message
         Message draftMessage = graphServiceClient.me().messages()

@@ -1,4 +1,4 @@
-import org.ajoberstar.grgit.Grgit
+//import org.ajoberstar.grgit.Grgit
 
 buildscript {
     ext {
@@ -20,7 +20,7 @@ plugins {
     id "com.jfrog.bintray" version "1.2"
 }
 
-version "1.0-M1"
+version "2.0-M1"
 group "org.grails.plugins"
 
 apply plugin: "eclipse"
