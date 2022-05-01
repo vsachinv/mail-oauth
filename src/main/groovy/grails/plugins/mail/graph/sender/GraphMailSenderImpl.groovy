@@ -30,6 +30,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     @Override
     protected void doSend(MimeMessage[] mimeMessages, Object[] originalMessages) throws MailException {
+        log.warn("Invalid method of GraphMailSenderImpl getting called")
         throw new GrailsMailException("Please do use sendMailViaGraph method rather doSend")
     }
 
@@ -60,6 +61,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
     }
 
     private void processAttachmentAndSendMsg(Message message, List<FileAttachment> attachmentList) throws GraphFatalServiceException {
+        log.debug("Sending email to ${message.toRecipients ? (message?.toRecipients*.emailAddress*.address) : ''} with ${attachmentList?.size()} attachments using graph protocol")
         GraphServiceClient graphServiceClient = graphApiClient.standardMailClient
         message.attachments = null
         //create a draft message
@@ -108,5 +110,6 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
                 .send()
                 .buildRequest()
                 .post()
+        log.debug("Sent email successfully")
     }
 }

@@ -21,6 +21,7 @@ class ImapEmailReaderService {
         imapConfig.otherProperties?.each {
             properties.put(it.key, it.value)
         }
+        log.debug("Setting up ${properties.toString()} for imap connection ${imapConfig.configName}")
         Session.getInstance(properties).getStore(imapConfig.protocol)
     }
 
@@ -43,6 +44,7 @@ class ImapEmailReaderService {
     Folder createFolder(Store store, String folderName) {
         Folder folder = store.defaultFolder.getFolder(folderName)
         if (!folder.exists()) {
+            log.debug("Creating new mail folder as $folderName using Imap protocol")
             folder.create(Folder.HOLDS_MESSAGES);
         }
         return folder

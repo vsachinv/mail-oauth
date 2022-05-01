@@ -68,6 +68,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             tokenStore(MemoryTokenStore)
 
             if (mailConfig.oAuth.graph.enabled) {
+                println "Enabled mail send graph configuration"
                 tokenBasedAuthCredential(TokenBasedAuthCredential) {
                     mailOAuthService = ref('mailOAuthService')
                 }
@@ -82,7 +83,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             if (mailConfig.reader.enabled) {
                 readerTokenStoreService(InMemoryReaderTokenStoreService)
                 if (mailConfig.reader.graph.enabled) {
-                    println "Enable mail-reader graph configuration"
+                    println "Enabled mail-reader graph configuration"
                     if (!mailConfig.oAuth.graph.enabled) {
                         graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '')
                     }
@@ -92,7 +93,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                     }
                 }
                 if (mailConfig.reader.imap.enabled) {
-                    println "Enable mail-reader imap configuration"
+                    println "Enabled mail-reader imap configuration"
                     imapEmailReaderService(ImapEmailReaderService) {
                         readerTokenStoreService = ref('readerTokenStoreService')
                     }
@@ -111,6 +112,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
         Integer newMailConfigHash = newMailConfig.hashCode()
 
         if (newMailConfigHash != mailConfigHash) {
+            println "Reloading oauth mail configurations as config got changed"
             event.ctx.removeBeanDefinition("mailSender")
             mailConfig = newMailConfig
             mailConfigHash = newMailConfigHash

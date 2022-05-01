@@ -12,7 +12,11 @@ import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.GraphConfig
 import grails.plugins.mail.graph.token.AdhocTokenCredential
 import grails.plugins.mail.graph.token.ReaderTokenStoreService
+import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 
+@Slf4j
+@CompileStatic
 class GraphEmailReaderService {
 
     GraphApiClient graphApiClient
@@ -27,6 +31,7 @@ class GraphEmailReaderService {
     */
 
     MessageCollectionPage listMessages(GraphConfig graphConfig, String mailFolderId, int topMaxMessage) {
+        log.debug("Reading messages from ${mailFolderId} folder for config ${graphConfig.configName}")
         mailFolderId = mailFolderId ?: 'Inbox'
         topMaxMessage = topMaxMessage ?: 10
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
@@ -46,6 +51,7 @@ class GraphEmailReaderService {
     */
 
     Message moveMessage(GraphConfig graphConfig, String messageId, String destinationFolderId) {
+        log.debug("Moving message ${messageId} to ${destinationFolderId} for config ${graphConfig.configName}")
         destinationFolderId = destinationFolderId ?: "deleteditems" //default is to delete folder
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
         Message message = serviceClient.me().messages(messageId)
@@ -65,6 +71,7 @@ class GraphEmailReaderService {
     */
 
     Message deleteMessageById(GraphConfig graphConfig, String messageId) {
+        log.debug("Deleting message ${messageId} for config ${graphConfig.configName}")
         //update a specific message
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
         Message message = serviceClient.me().messages(messageId)
@@ -79,6 +86,7 @@ class GraphEmailReaderService {
     */
 
     AttachmentCollectionPage getMessageAttachments(GraphConfig graphConfig, String messageId) {
+        log.debug("Collecting message ${messageId} attachmnets for config ${graphConfig.configName}")
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
         AttachmentCollectionPage attachments = serviceClient.me()
                 .messages(messageId)
@@ -94,6 +102,7 @@ class GraphEmailReaderService {
     */
 
     MailFolderCollectionPage listMailFolders(GraphConfig graphConfig) {
+        log.debug("Collecting mail folders for config ${graphConfig.configName}")
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
         MailFolderCollectionPage mailFolders = serviceClient.me()
                 .mailFolders()
@@ -108,6 +117,7 @@ class GraphEmailReaderService {
     */
 
     MailFolder createMailFolder(GraphConfig graphConfig, String mailFolderName) {
+        log.debug("Creating mail folder ${mailFolderName} for config ${graphConfig.configName}")
         MailFolder mailFolder = new MailFolder(displayName: mailFolderName, isHidden: false)
         GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
         return serviceClient.me()
