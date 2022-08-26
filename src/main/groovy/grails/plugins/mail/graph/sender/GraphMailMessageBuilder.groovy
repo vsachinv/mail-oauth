@@ -60,7 +60,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     void headers(Map hdrs) {
         LinkedList<InternetMessageHeader> internetMessageHeadersList = new LinkedList<InternetMessageHeader>()
         hdrs.each { it ->
-            InternetMessageHeader internetMessageHeaders = new InternetMessageHeader(name: it.key as String, value: it.value as String)
+            InternetMessageHeader internetMessageHeaders = new InternetMessageHeader(name: 'x-'+it.key as String, value: it.value as String)
             internetMessageHeadersList.add(internetMessageHeaders)
         }
         this.internetMessageHeaders = internetMessageHeadersList
