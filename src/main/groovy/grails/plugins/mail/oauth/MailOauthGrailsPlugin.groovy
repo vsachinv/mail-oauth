@@ -59,48 +59,43 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
     Closure doWithSpring() {
         { ->
             mailConfig = grailsApplication.config.grails.mail
-            if (!mailConfig.oAuth.enabled) {
-                return
-            }
             println "Loading mail-oAuth configuration"
             mailConfigHash = mailConfig.hashCode()
 
             tokenStore(MemoryTokenStore)
 
-            if (mailConfig.oAuth.graph.enabled) {
-                println "Enabled mail send graph configuration"
-                tokenBasedAuthCredential(TokenBasedAuthCredential) {
-                    mailOAuthService = ref('mailOAuthService')
-                }
+            if (mailConfig.oAuth.enabled) {
+                if (mailConfig.oAuth.graph.enabled) {
+                    println "Enabled mail send graph configuration"
+                    tokenBasedAuthCredential(TokenBasedAuthCredential) {
+                        mailOAuthService = ref('mailOAuthService')
+                    }
 
-                graphApiClient(GraphApiClient, ref('tokenBasedAuthCredential'), mailConfig.oAuth.api_scope)
+                    graphApiClient(GraphApiClient, ref('tokenBasedAuthCredential'), mailConfig.oAuth.api_scope)
 
-                mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
-                    it.autowire = true
+                    mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
+                        it.autowire = true
+                    }
                 }
+                configureMailOAuthSender(delegate, mailConfig)
             }
 
             if (mailConfig.reader.enabled) {
                 readerTokenStoreService(InMemoryReaderTokenStoreService)
-                if (mailConfig.reader.graph.enabled) {
-                    println "Enabled mail-reader graph configuration"
-                    if (!mailConfig.oAuth.graph.enabled) {
-                        graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '')
-                    }
-                    graphEmailReaderService(GraphEmailReaderService) {
-                        graphApiClient = ref('graphApiClient')
-                        readerTokenStoreService = ref('readerTokenStoreService')
-                    }
+                println "Enabled mail-reader graph configuration"
+                if (!mailConfig.oAuth.enabled || !mailConfig.oAuth.graph.enabled) {
+                    graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '')
                 }
-                if (mailConfig.reader.imap.enabled) {
-                    println "Enabled mail-reader imap configuration"
-                    imapEmailReaderService(ImapEmailReaderService) {
-                        readerTokenStoreService = ref('readerTokenStoreService')
-                    }
+                graphEmailReaderService(GraphEmailReaderService) {
+                    graphApiClient = ref('graphApiClient')
+                    readerTokenStoreService = ref('readerTokenStoreService')
+                }
+                println "Enabled mail-reader imap configuration"
+                imapEmailReaderService(ImapEmailReaderService) {
+                    readerTokenStoreService = ref('readerTokenStoreService')
                 }
             }
 
-            configureMailOAuthSender(delegate, mailConfig)
         }
     }
 

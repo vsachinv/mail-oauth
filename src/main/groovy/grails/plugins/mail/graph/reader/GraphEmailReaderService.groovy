@@ -1,6 +1,6 @@
 package grails.plugins.mail.graph.reader
 
-
+import com.microsoft.graph.core.ClientException
 import com.microsoft.graph.models.MailFolder
 import com.microsoft.graph.models.Message
 import com.microsoft.graph.models.MessageMoveParameterSet
@@ -10,8 +10,8 @@ import com.microsoft.graph.requests.MailFolderCollectionPage
 import com.microsoft.graph.requests.MessageCollectionPage
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.GraphConfig
-import grails.plugins.mail.graph.token.AdhocTokenCredential
 import grails.plugins.mail.graph.token.ReaderTokenStoreService
+import grails.util.Holders
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
@@ -34,7 +34,7 @@ class GraphEmailReaderService {
         log.debug("Reading messages from ${mailFolderId} folder for config ${graphConfig.configName}")
         mailFolderId = mailFolderId ?: 'Inbox'
         topMaxMessage = topMaxMessage ?: 10
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         MessageCollectionPage messages = serviceClient.me().mailFolders(mailFolderId).messages()
                 .buildRequest()
                 .top(topMaxMessage)
@@ -53,7 +53,7 @@ class GraphEmailReaderService {
     Message moveMessage(GraphConfig graphConfig, String messageId, String destinationFolderId) {
         log.debug("Moving message ${messageId} to ${destinationFolderId} for config ${graphConfig.configName}")
         destinationFolderId = destinationFolderId ?: "deleteditems" //default is to delete folder
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         Message message = serviceClient.me().messages(messageId)
                 .move(MessageMoveParameterSet
                         .newBuilder()
@@ -73,7 +73,7 @@ class GraphEmailReaderService {
     Message deleteMessageById(GraphConfig graphConfig, String messageId) {
         log.debug("Deleting message ${messageId} for config ${graphConfig.configName}")
         //update a specific message
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         Message message = serviceClient.me().messages(messageId)
                 .buildRequest()
                 .delete()
@@ -87,7 +87,7 @@ class GraphEmailReaderService {
 
     AttachmentCollectionPage getMessageAttachments(GraphConfig graphConfig, String messageId) {
         log.debug("Collecting message ${messageId} attachmnets for config ${graphConfig.configName}")
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         AttachmentCollectionPage attachments = serviceClient.me()
                 .messages(messageId)
                 .attachments()
@@ -103,7 +103,7 @@ class GraphEmailReaderService {
 
     MailFolderCollectionPage listMailFolders(GraphConfig graphConfig) {
         log.debug("Collecting mail folders for config ${graphConfig.configName}")
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         MailFolderCollectionPage mailFolders = serviceClient.me()
                 .mailFolders()
                 .buildRequest()
@@ -119,11 +119,19 @@ class GraphEmailReaderService {
     MailFolder createMailFolder(GraphConfig graphConfig, String mailFolderName) {
         log.debug("Creating mail folder ${mailFolderName} for config ${graphConfig.configName}")
         MailFolder mailFolder = new MailFolder(displayName: mailFolderName, isHidden: false)
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(new AdhocTokenCredential(oAuthToken: readerTokenStoreService.getTokenFor(graphConfig)), graphConfig.scopes)
+        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         return serviceClient.me()
                 .mailFolders()
                 .buildRequest()
                 .post(mailFolder)
+    }
+
+    void testConnection(GraphConfig graphConfig) throws ClientException {
+        if (Holders.config.getProperty('grails.mail.reader.health.check.disabled',Boolean)) {
+            log.warn("Health Check is disabled by config so no checking for $graphConfig.configName")
+            return
+        }
+        readerTokenStoreService.refreshTokenFor(graphConfig)
     }
 
 }

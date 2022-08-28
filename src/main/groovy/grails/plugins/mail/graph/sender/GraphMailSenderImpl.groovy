@@ -12,6 +12,7 @@ import com.microsoft.graph.tasks.LargeFileUploadTask
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
+import grails.util.Holders
 import groovy.util.logging.Slf4j
 import com.microsoft.graph.models.Message
 import org.springframework.mail.MailAuthenticationException
@@ -111,5 +112,13 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
                 .buildRequest()
                 .post()
         log.debug("Sent email successfully")
+    }
+
+    public void testConnection() throws GraphFatalServiceException {
+        if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
+            log.warn("Health Check is disabled by config")
+            return
+        }
+        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken())
     }
 }
