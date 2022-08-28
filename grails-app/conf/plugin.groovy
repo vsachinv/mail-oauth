@@ -16,16 +16,12 @@ grails {
                 enabled = false
                 attachmentMax = 3 //MB
             }
+            health.check.disabled = false
         }
         //Refer examples folder for usage of reader functions
         reader {
             enabled = false
-            graph {
-                enabled = false
-            }
-            imap {
-                enabled = false
-            }
+            health.check.disabled = false
         }
     }
 }

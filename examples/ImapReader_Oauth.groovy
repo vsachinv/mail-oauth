@@ -26,7 +26,7 @@ imapConfig.with {
     port = 993
     host = 'outlook.office365.com'
     protocol = 'imaps'
-    oAuthEnabled = false
+    oAuthEnabled = true
     otherProperties = [
             "mail.imaps.starttls.enable"  : "true",
             "mail.imaps.connectiontimeout": "240000",
@@ -42,7 +42,7 @@ imapConfig.with {
             "mail.imap.auth.plain.disable": "true"
     ]
 
-    graphConfig = new GraphConfig(configName: 'imap_sachin_oauth2',tenantId: '')
+    graphConfig = graphConfigObj
 
 }
 

@@ -2,6 +2,7 @@ package grails.plugins.mail.imap.reader
 
 import grails.plugins.mail.graph.token.ReaderTokenStoreService
 import grails.plugins.mail.imap.ImapConfig
+import grails.plugins.mail.oauth.token.OAuthToken
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
@@ -32,7 +33,11 @@ class ImapEmailReaderService {
     private String getPassword(ImapConfig imapConfig) {
         if (imapConfig.oAuthEnabled) {
             log.debug("Returning OAuth2 access token for ${imapConfig.configName}")
-            return readerTokenStoreService.getTokenFor(imapConfig.graphConfig).accessToken
+            OAuthToken oAuthToken = readerTokenStoreService.getTokenFor(imapConfig.graphConfig)
+            if (!oAuthToken) {
+                throw new Exception("Valid OAuth Token not found for ${imapConfig.configName} in token repo. Please get the same generated first")
+            }
+            return oAuthToken.accessToken
         }
         return imapConfig.password
     }
