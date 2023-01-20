@@ -11,10 +11,14 @@ import com.microsoft.graph.models.Recipient
 import com.microsoft.graph.requests.AttachmentCollectionPage
 import com.microsoft.graph.requests.AttachmentCollectionResponse
 import grails.config.Config
+import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphMessage
+import grails.web.mime.MimeType
 import groovy.util.logging.Slf4j
+import org.apache.commons.io.FilenameUtils
+import org.grails.web.mime.DefaultMimeUtility
 import org.springframework.core.io.InputStreamSource
 import org.springframework.mail.MailMessage
 import org.springframework.mail.MailSender
@@ -44,8 +48,11 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     public List<FileAttachment> attachmentList = []
     private boolean async = false
 
-    GraphMailMessageBuilder(MailSender mailSender, Config config, MailMessageContentRenderer mailMessageContentRenderer) {
+    private final DefaultMimeUtility grailsMimeUtility
+
+    GraphMailMessageBuilder(MailSender mailSender, Config config, MailMessageContentRenderer mailMessageContentRenderer, DefaultMimeUtility grailsMimeUtility) {
         super(mailSender, config, mailMessageContentRenderer)
+        this.grailsMimeUtility = grailsMimeUtility
     }
 
     void processGraphMessage() {
@@ -60,7 +67,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     void headers(Map hdrs) {
         LinkedList<InternetMessageHeader> internetMessageHeadersList = new LinkedList<InternetMessageHeader>()
         hdrs.each { it ->
-            InternetMessageHeader internetMessageHeaders = new InternetMessageHeader(name: 'x-'+it.key as String, value: it.value as String)
+            InternetMessageHeader internetMessageHeaders = new InternetMessageHeader(name: 'x-' + it.key as String, value: it.value as String)
             internetMessageHeadersList.add(internetMessageHeaders)
         }
         this.internetMessageHeaders = internetMessageHeadersList
@@ -378,17 +385,44 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
+    void attach(String fileName, File file) {
+        if (!mimeCapable) {
+            throw new GrailsMailException("Message is not an instance of org.springframework.mail.javamail.MimeMessage, cannot attach bytes!")
+        }
+
+        attach(fileName, getContentType(file), file)
+    }
+
+    @Override
+    void inline(String fileName, File file) {
+        if (!mimeCapable) {
+            throw new GrailsMailException("Message is not an instance of org.springframework.mail.javamail.MimeMessage, cannot attach bytes!")
+        }
+
+        inline(fileName, getContentType(file), file)
+    }
+
+    @Override
     void inline(String contentId, String contentType, InputStreamSource source) {
         this.hasAttachments = true
-        FileAttachment attachment = new FileAttachment(name: contentId, contentType: contentType, contentBytes: Base64.getEncoder().encode(StreamUtils.copyToByteArray(source.inputStream)), isInline: true)
+        FileAttachment attachment = new FileAttachment(name: contentId, contentType: contentType, contentBytes: StreamUtils.copyToByteArray(source.inputStream), isInline: true)
         this.attachmentList.add(attachment)
     }
 
     @Override
     protected doAdd(String id, String contentType, InputStreamSource toAdd, boolean isAttachment) {
         this.hasAttachments = true
-        FileAttachment attachment = new FileAttachment(name: id, contentType: contentType, contentBytes: Base64.getEncoder().encode(StreamUtils.copyToByteArray(toAdd.inputStream)), isInline: false)
+        FileAttachment attachment = new FileAttachment(name: id, contentType: contentType, contentBytes: StreamUtils.copyToByteArray(toAdd.inputStream), isInline: false)
         this.attachmentList.add(attachment)
+    }
+
+    String getContentType(File file) {
+        String extension = FilenameUtils.getExtension(file.name)?.toLowerCase()
+        MimeType mimeType = grailsMimeUtility.getMimeTypeForExtension(extension)
+        if (mimeType) {
+            return mimeType.name
+        }
+        return 'application/octet-stream'
     }
 
 }
