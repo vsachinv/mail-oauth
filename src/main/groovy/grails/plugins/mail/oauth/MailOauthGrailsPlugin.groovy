@@ -31,7 +31,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 '''
     def profiles = ['web']
 
-    List loadAfter = ['mail']
+    List loadAfter = ['mail','mimeTypes']
 
     // URL to the plugin's documentation
     def documentation = "http://grails.org/plugin/mail-oauth"
@@ -76,6 +76,8 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                     mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
                         it.autowire = true
                     }
+                } else {
+                    println "Enabled mail send via smtp using OAuth configuration"
                 }
                 configureMailOAuthSender(delegate, mailConfig)
             }
