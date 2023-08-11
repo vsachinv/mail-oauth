@@ -12,6 +12,16 @@ grails {
                 refresh.time.difference = 600 //if less than 10mins then refresh
             }
             redirect.uri = '/mailOAuth/index'
+            graph {
+                enabled = false
+                attachmentMax = 3 //MB
+            }
+            health.check.disabled = false
+        }
+        //Refer examples folder for usage of reader functions
+        reader {
+            enabled = false
+            health.check.disabled = false
         }
     }
 }

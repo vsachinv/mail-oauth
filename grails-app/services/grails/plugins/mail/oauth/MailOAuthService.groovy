@@ -7,7 +7,10 @@ import com.github.scribejava.core.oauth.OAuth20Service
 import grails.config.Config
 import grails.core.support.GrailsConfigurationAware
 import grails.plugins.mail.oauth.token.OAuthToken
+import groovy.util.logging.Slf4j
 
+
+@Slf4j
 class MailOAuthService implements GrailsConfigurationAware {
 
     def tokenStore
@@ -43,17 +46,17 @@ class MailOAuthService implements GrailsConfigurationAware {
         return authToken
     }
 
-    String getAccessToken() {
+    OAuthToken getAccessToken() {
         OAuthToken oAuthToken = tokenStore.getToken()
         if (!oAuthToken) {
             log.error("No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
             return null
         }
         if (oAuthToken.expireAt > new Date()) {
-            return oAuthToken.accessToken
+            return oAuthToken
         }
         oAuthToken = refreshAccessToken(oAuthToken)
-        return oAuthToken.accessToken
+        return oAuthToken
     }
 
     void revokeToken() {

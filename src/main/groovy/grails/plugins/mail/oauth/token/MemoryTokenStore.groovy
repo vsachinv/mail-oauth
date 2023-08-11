@@ -5,7 +5,7 @@ import groovy.transform.CompileStatic
 @CompileStatic
 class MemoryTokenStore implements TokenStore {
 
-    OAuthToken token
+    private OAuthToken token
 
     @Override
     void saveToken(OAuthToken token) {
