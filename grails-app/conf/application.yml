@@ -12,6 +12,8 @@ spring:
     groovy:
         template:
             check-template-location: false
+    jmx:
+        unique-names: true
 
 ---
 grails:
@@ -73,9 +75,9 @@ hibernate:
         use_query_cache: false
         region.factory_class: 'org.hibernate.cache.ehcache.EhCacheRegionFactory'
 
-endpoints:
-    jmx:
-        unique-names: true
+management:
+    endpoints:
+        enabled-by-default: false
 
 dataSource:
     pooled: true

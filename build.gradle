@@ -8,8 +8,9 @@ buildscript {
         maven { url "https://repo.grails.org/grails/core" }
     }
     dependencies {
-        classpath "org.grails:grails-gradle-plugin:$grailsVersion"
-        classpath "com.bertramlabs.plugins:asset-pipeline-gradle:3.2.4"
+        classpath "org.grails:grails-gradle-plugin:$grailsGradlePluginVersion"
+        classpath "com.bertramlabs.plugins:asset-pipeline-gradle:3.4.7"
+        classpath "gradle.plugin.com.github.erdi.webdriver-binaries:webdriver-binaries-gradle-plugin:2.6"
         classpath "com.gorylenko.gradle-git-properties:com.gorylenko.gradle-git-properties.gradle.plugin:2.4.2"
     }
 }
@@ -19,7 +20,7 @@ plugins {
     id "com.jfrog.bintray" version "1.8.5"
 }
 
-version "4.0-M1"
+version "5.0-M1"
 group "org.grails.plugins"
 
 apply plugin: "eclipse"
@@ -32,7 +33,6 @@ apply plugin: "maven-publish"
 
 ext {
     grailsVersion = project.grailsVersion
-    gradleWrapperVersion = project.gradleWrapperVersion
 }
 
 sourceCompatibility = 1.8
@@ -60,29 +60,24 @@ configurations {
 
 dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    provided 'org.springframework.boot:spring-boot-starter-logging'
-    provided "org.springframework.boot:spring-boot-starter-actuator"
-    provided "org.springframework.boot:spring-boot-autoconfigure"
-    provided "org.springframework.boot:spring-boot-starter-tomcat"
-    provided "org.grails:grails-web-boot"
-    provided "org.grails:grails-dependencies"
-    provided 'javax.servlet:javax.servlet-api:3.1.0'
-    provided "commons-io:commons-io:2.5"
-    runtime "com.bertramlabs.plugins:asset-pipeline-grails:3.2.4"
-    testCompile "io.micronaut:micronaut-inject-groovy"
-    testCompile "org.grails:grails-gorm-testing-support"
-    testCompile "org.mockito:mockito-core"
-    testCompile "org.grails:grails-web-testing-support"
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-autoconfigure"
+    implementation "org.springframework.boot:spring-boot-starter-tomcat"
+    implementation "org.grails:grails-web-boot"
+    implementation "org.grails:grails-dependencies"
+    implementation 'javax.servlet:javax.servlet-api:3.1.0'
+    implementation "commons-io:commons-io:2.5"
+    runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:3.2.4"
+    testImplementation "org.grails:grails-gorm-testing-support"
+    testImplementation "org.mockito:mockito-core"
+    testImplementation "org.grails:grails-web-testing-support"
     console "org.grails:grails-console"
-    compile 'org.grails.plugins:mail:3.0.0'
-    compile 'com.github.scribejava:scribejava-core:8.3.3'
-    compile 'com.github.scribejava:scribejava-apis:8.3.3'
-    compile group: 'io.projectreactor', name: 'reactor-core', version: '3.6.6'
-    compile 'com.microsoft.graph:microsoft-graph:6.+'
-}
-
-task wrapperVersion(type: Wrapper) {
-    gradleVersion = gradleWrapperVersion
+    implementation 'org.grails.plugins:mail:3.0.0'
+    implementation 'com.github.scribejava:scribejava-core:8.3.3'
+    implementation 'com.github.scribejava:scribejava-apis:8.3.3'
+    implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.6.6'
+    implementation 'com.microsoft.graph:microsoft-graph:6.+'
 }
 
 task sourceJar(type: Jar) {
@@ -110,6 +105,28 @@ jar {
     }
     from sourceSets.main.output
     exclude 'git.properties'
+}
+
+tasks.withType(GroovyCompile) {
+    configure(groovyOptions) {
+        forkOptions.jvmArgs = ['-Xmx1024m']
+    }
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+tasks.withType(Test) {
+    systemProperty "geb.env", System.getProperty('geb.env')
+    systemProperty "geb.build.reportsDir", reporting.file("geb/integrationTest")
+    if (!System.getenv().containsKey('GITHUB_ACTIONS')) {
+        systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
+        systemProperty 'webdriver.gecko.driver', System.getProperty('webdriver.gecko.driver')
+    } else {
+        systemProperty 'webdriver.chrome.driver', "${System.getenv('CHROMEWEBDRIVER')}/chromedriver"
+        systemProperty 'webdriver.gecko.driver', "${System.getenv('GECKOWEBDRIVER')}/geckodriver"
+    }
 }
 
 publishing {
