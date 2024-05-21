@@ -1,42 +1,20 @@
-buildscript {
-    ext {
-        grailsVersion = project.grailsVersion
-    }
-    repositories {
-        mavenLocal()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.grails.org/grails/core" }
-    }
-    dependencies {
-        classpath "org.grails:grails-gradle-plugin:$grailsGradlePluginVersion"
-        classpath "com.bertramlabs.plugins:asset-pipeline-gradle:3.4.7"
-        classpath "gradle.plugin.com.github.erdi.webdriver-binaries:webdriver-binaries-gradle-plugin:2.6"
-        classpath "com.gorylenko.gradle-git-properties:com.gorylenko.gradle-git-properties.gradle.plugin:2.4.2"
-    }
-}
-
 plugins {
-    id "io.spring.dependency-management" version "0.5.4.RELEASE"
-    id "com.jfrog.bintray" version "1.8.5"
+    id "com.gorylenko.gradle-git-properties"
+    id "io.spring.dependency-management"
+    id "org.grails.grails-plugin"
+    id "com.bertramlabs.asset-pipeline"
+    id "idea"
+    id "application"
+    id "eclipse"
+    id "maven-publish"
+    id "java-library"
 }
 
-version "5.0-M1"
 group "org.grails.plugins"
-
-apply plugin: "eclipse"
-apply plugin: "idea"
-apply plugin: "org.grails.grails-plugin"
-apply plugin: "org.grails.grails-gsp"
-apply plugin:"com.bertramlabs.asset-pipeline"
-apply plugin: "com.gorylenko.gradle-git-properties"
-apply plugin: "maven-publish"
 
 ext {
     grailsVersion = project.grailsVersion
 }
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
 
 repositories {
     mavenLocal()
@@ -44,17 +22,13 @@ repositories {
     maven { url "https://repo.grails.org/grails/core" }
 }
 
-dependencyManagement {
-    imports {
-        mavenBom "org.grails:grails-bom:$grailsVersion"
-    }
-    applyMavenExclusions false
-}
-
 configurations {
-    developmentOnly
-    runtimeClasspath {
-        extendsFrom developmentOnly
+    all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details->
+            if (details.requested.group == 'org.seleniumhq.selenium') {
+                details.useVersion('4.19.1')
+            }
+        }
     }
 }
 
@@ -66,9 +40,9 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-tomcat"
     implementation "org.grails:grails-web-boot"
     implementation "org.grails:grails-dependencies"
-    implementation 'javax.servlet:javax.servlet-api:3.1.0'
-    implementation "commons-io:commons-io:2.5"
-    runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:3.2.4"
+    implementation 'javax.servlet:javax.servlet-api:4.0.1'
+    implementation "commons-io:commons-io:2.16.1"
+    runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:4.3.0"
     testImplementation "org.grails:grails-gorm-testing-support"
     testImplementation "org.mockito:mockito-core"
     testImplementation "org.grails:grails-web-testing-support"
@@ -83,6 +57,10 @@ dependencies {
 task sourceJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion("11")
 }
 
 gitProperties {
@@ -120,13 +98,8 @@ tasks.withType(Test) {
 tasks.withType(Test) {
     systemProperty "geb.env", System.getProperty('geb.env')
     systemProperty "geb.build.reportsDir", reporting.file("geb/integrationTest")
-    if (!System.getenv().containsKey('GITHUB_ACTIONS')) {
-        systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver')
-        systemProperty 'webdriver.gecko.driver', System.getProperty('webdriver.gecko.driver')
-    } else {
-        systemProperty 'webdriver.chrome.driver', "${System.getenv('CHROMEWEBDRIVER')}/chromedriver"
-        systemProperty 'webdriver.gecko.driver', "${System.getenv('GECKOWEBDRIVER')}/geckodriver"
-    }
+    systemProperty 'webdriver.chrome.driver', "${System.getenv('CHROMEWEBDRIVER')}/chromedriver"
+    systemProperty 'webdriver.gecko.driver', "${System.getenv('GECKOWEBDRIVER')}/geckodriver"
 }
 
 publishing {
@@ -153,8 +126,8 @@ publishing {
         maven {
             credentials {
 //                Use  ~/.gradle/gradle.properties for passing below credentials.
-                username nexusUsername
-                password nexusPassword
+//                username nexusUsername
+//                password nexusPassword
             }
             url "http://10.100.3.6:8080/nexus/content/repositories/common-component-snapshots/"
         }
