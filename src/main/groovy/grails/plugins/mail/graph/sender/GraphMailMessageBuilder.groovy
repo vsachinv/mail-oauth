@@ -8,8 +8,6 @@ import com.microsoft.graph.models.InferenceClassificationType
 import com.microsoft.graph.models.InternetMessageHeader
 import com.microsoft.graph.models.ItemBody
 import com.microsoft.graph.models.Recipient
-import com.microsoft.graph.requests.AttachmentCollectionPage
-import com.microsoft.graph.requests.AttachmentCollectionResponse
 import grails.config.Config
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.MailMessageBuilder
@@ -354,10 +352,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
             message.from = this.from
         message.internetMessageHeaders = this.internetMessageHeaders
         if (message.hasAttachments) {
-            AttachmentCollectionResponse attachmentCollectionResponse = new AttachmentCollectionResponse()
-            attachmentCollectionResponse.value = this.attachmentList
-            AttachmentCollectionPage attachmentCollectionPage = new AttachmentCollectionPage(attachmentCollectionResponse, null)
-            message.attachments = attachmentCollectionPage
+            message.attachments = this.attachmentList
         }
         message.body = this.body
 

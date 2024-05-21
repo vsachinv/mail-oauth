@@ -1,19 +1,21 @@
 package grails.plugins.mail.graph.reader
 
-import com.microsoft.graph.core.ClientException
+import com.microsoft.graph.core.exceptions.ClientException
+import com.microsoft.graph.models.AttachmentCollectionResponse
 import com.microsoft.graph.models.MailFolder
+import com.microsoft.graph.models.MailFolderCollectionResponse
 import com.microsoft.graph.models.Message
-import com.microsoft.graph.models.MessageMoveParameterSet
-import com.microsoft.graph.requests.AttachmentCollectionPage
-import com.microsoft.graph.requests.GraphServiceClient
-import com.microsoft.graph.requests.MailFolderCollectionPage
-import com.microsoft.graph.requests.MessageCollectionPage
+import com.microsoft.graph.models.MessageCollectionResponse
+import com.microsoft.graph.serviceclient.GraphServiceClient
+import com.microsoft.graph.users.item.messages.item.move.MovePostRequestBody
+import com.microsoft.graph.users.item.mailfolders.item.messages.*
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.GraphConfig
 import grails.plugins.mail.graph.token.ReaderTokenStoreService
 import grails.util.Holders
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import java.util.function.Consumer
 
 @Slf4j
 @CompileStatic
@@ -30,15 +32,23 @@ class GraphEmailReaderService {
     return top 10 message of the inbox folder from mailbox, use $select and @odata.nextLink for further selection from the data
     */
 
-    MessageCollectionPage listMessages(GraphConfig graphConfig, String mailFolderId, int topMaxMessage) {
+    MessageCollectionResponse listMessages(GraphConfig graphConfig, String mailFolderId, int topMaxMessage) {
         log.debug("Reading messages from ${mailFolderId} folder for config ${graphConfig.configName}")
         mailFolderId = mailFolderId ?: 'Inbox'
         topMaxMessage = topMaxMessage ?: 10
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        MessageCollectionPage messages = serviceClient.me().mailFolders(mailFolderId).messages()
-                .buildRequest()
-                .top(topMaxMessage)
-                .get()
+        MessageCollectionResponse messages = serviceClient
+                .me()
+                .mailFolders()
+                .byMailFolderId(mailFolderId)
+                .messages()
+                .get(new Consumer<MessagesRequestBuilder.GetRequestConfiguration>() {
+                    @Override
+                    void accept(MessagesRequestBuilder.GetRequestConfiguration requestConfiguration) {
+                        requestConfiguration.queryParameters.top = topMaxMessage
+                    }
+                })
+
         return messages
     }
 
@@ -54,13 +64,9 @@ class GraphEmailReaderService {
         log.debug("Moving message ${messageId} to ${destinationFolderId} for config ${graphConfig.configName}")
         destinationFolderId = destinationFolderId ?: "deleteditems" //default is to delete folder
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        Message message = serviceClient.me().messages(messageId)
-                .move(MessageMoveParameterSet
-                        .newBuilder()
-                        .withDestinationId(destinationFolderId)
-                        .build())
-                .buildRequest()
-                .post()
+        MovePostRequestBody movePostRequestBody = new MovePostRequestBody()
+        movePostRequestBody.setDestinationId(destinationFolderId);
+        Message message = serviceClient.me().messages().byMessageId(messageId).move().post(movePostRequestBody);
         return message
     }
 
@@ -70,14 +76,11 @@ class GraphEmailReaderService {
     reference: https://docs.microsoft.com/en-us/graph/api/message-delete?view=graph-rest-1.0&tabs=java
     */
 
-    Message deleteMessageById(GraphConfig graphConfig, String messageId) {
+    void deleteMessageById(GraphConfig graphConfig, String messageId) {
         log.debug("Deleting message ${messageId} for config ${graphConfig.configName}")
         //update a specific message
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        Message message = serviceClient.me().messages(messageId)
-                .buildRequest()
-                .delete()
-        return message
+        serviceClient.me().messages().byMessageId(messageId).delete()
     }
 
     /*
@@ -85,13 +88,12 @@ class GraphEmailReaderService {
     reference: https://docs.microsoft.com/en-us/graph/api/message-list-attachments?view=graph-rest-1.0&tabs=java
     */
 
-    AttachmentCollectionPage getMessageAttachments(GraphConfig graphConfig, String messageId) {
+    AttachmentCollectionResponse getMessageAttachments(GraphConfig graphConfig, String messageId) {
         log.debug("Collecting message ${messageId} attachmnets for config ${graphConfig.configName}")
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        AttachmentCollectionPage attachments = serviceClient.me()
-                .messages(messageId)
+        AttachmentCollectionResponse attachments = serviceClient.me()
+                .messages().byMessageId(messageId)
                 .attachments()
-                .buildRequest()
                 .get();
         return attachments
     }
@@ -101,12 +103,11 @@ class GraphEmailReaderService {
     reference: https://docs.microsoft.com/en-us/graph/api/user-list-mailfolders?view=graph-rest-1.0&tabs=java
     */
 
-    MailFolderCollectionPage listMailFolders(GraphConfig graphConfig) {
+    MailFolderCollectionResponse listMailFolders(GraphConfig graphConfig) {
         log.debug("Collecting mail folders for config ${graphConfig.configName}")
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        MailFolderCollectionPage mailFolders = serviceClient.me()
+        MailFolderCollectionResponse mailFolders = serviceClient.me()
                 .mailFolders()
-                .buildRequest()
                 .get()
         return mailFolders
     }
@@ -122,7 +123,6 @@ class GraphEmailReaderService {
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         return serviceClient.me()
                 .mailFolders()
-                .buildRequest()
                 .post(mailFolder)
     }
 
