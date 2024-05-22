@@ -125,12 +125,13 @@ publishing {
     }
     repositories {
         maven {
+            name = "NexusRepo"
             credentials {
-//                Use  ~/.gradle/gradle.properties for passing below credentials.
-//                username nexusUsername
-//                password nexusPassword
+                username project.findProperty("nexusUsername") ?: System.getenv("NEXUS_USERNAME")
+                password project.findProperty("nexusPassword") ?: System.getenv("NEXUS_PASSWORD")
             }
-            url "http://10.100.3.6:8080/nexus/content/repositories/common-component-snapshots/"
+            url project.findProperty("nexusUrl") ?: System.getenv("NEXUS_URL")
+            allowInsecureProtocol = true
         }
     }
 }
