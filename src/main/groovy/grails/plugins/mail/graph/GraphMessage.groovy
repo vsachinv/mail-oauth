@@ -154,7 +154,7 @@ class GraphMessage extends Message implements MailMessage {
             return
         }
         ItemBody itemBody = new ItemBody()
-        itemBody.contentType = BodyType.Text
+        itemBody.contentType = BodyType.TEXT
         itemBody.content = text
         super.body = itemBody
     }

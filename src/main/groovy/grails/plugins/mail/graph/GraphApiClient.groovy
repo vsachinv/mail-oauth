@@ -1,7 +1,8 @@
 package grails.plugins.mail.graph
 
 import com.azure.core.credential.TokenCredential
-import com.microsoft.graph.serviceclient.GraphServiceClient
+import com.microsoft.graph.authentication.TokenCredentialAuthProvider
+import com.microsoft.graph.requests.GraphServiceClient
 import grails.plugins.mail.graph.token.AdhocTokenCredential
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -21,17 +22,24 @@ class GraphApiClient {
     GraphApiClient(TokenCredential tokenBasedAuthCredential, String scopes) {
         this.tokenBasedAuthCredential = tokenBasedAuthCredential
         this.scopes = scopes
-        this.graphServiceClient = new GraphServiceClient(tokenBasedAuthCredential, scopes)
+        TokenCredentialAuthProvider tokenCredAuthProvider = new TokenCredentialAuthProvider(scopes.split(' ').toList(), tokenBasedAuthCredential)
+        this.graphServiceClient = GraphServiceClient
+                .builder()
+                .authenticationProvider(tokenCredAuthProvider)
+                .buildClient()
     }
 
-    GraphServiceClient getStandardMailClient() {
+    public GraphServiceClient getStandardMailClient() {
         return this.graphServiceClient
     }
 
-    GraphServiceClient getClientFor(GraphConfig graphConfig) {
+    public GraphServiceClient getClientFor(GraphConfig graphConfig) {
         if (!cache.get(graphConfig.configName)) {
-            this.graphServiceClient = new GraphServiceClient(new AdhocTokenCredential(graphConfig: graphConfig), graphConfig.scopes)
-            cache.put(graphConfig.configName, this.graphServiceClient)
+            TokenCredentialAuthProvider tokenCredAuthProvider = new TokenCredentialAuthProvider(graphConfig.scopes.split(' ').toList(), new AdhocTokenCredential(graphConfig: graphConfig))
+            cache.put(graphConfig.configName, GraphServiceClient
+                    .builder()
+                    .authenticationProvider(tokenCredAuthProvider)
+                    .buildClient())
         }
         return cache.get(graphConfig.configName)
     }
