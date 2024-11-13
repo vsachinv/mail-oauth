@@ -47,7 +47,7 @@ dependencies {
     testImplementation "org.mockito:mockito-core"
     testImplementation "org.grails:grails-web-testing-support"
     console "org.grails:grails-console"
-    implementation 'org.grails.plugins:mail:3.0.0'
+    implementation 'org.grails.plugins:mail:4.0.0'
     implementation 'com.github.scribejava:scribejava-core:8.3.3'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'
     implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.6.6'

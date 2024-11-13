@@ -1,6 +1,6 @@
 package grails.plugins.mail.graph.sender
 
-import grails.config.Config
+import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageBuilderFactory
 import groovy.transform.CompileStatic
@@ -13,8 +13,8 @@ class GraphMailMessageBuilderFactory extends MailMessageBuilderFactory {
 
     DefaultMimeUtility grailsMimeUtility
 
-    MailMessageBuilder createBuilder(Config config) {
-        new GraphMailMessageBuilder(mailSender, config, mailMessageContentRenderer, grailsMimeUtility)
+    MailMessageBuilder createBuilder(MailConfigurationProperties properties) {
+        new GraphMailMessageBuilder(mailSender, properties, mailMessageContentRenderer, grailsMimeUtility)
     }
 
 }
