@@ -1,7 +1,7 @@
 package grails.plugins.mail.graph.sender
 
+import com.microsoft.graph.core.ClientException
 import com.microsoft.graph.http.GraphFatalServiceException
-import com.microsoft.graph.http.GraphServiceException
 import com.microsoft.graph.models.AttachmentCreateUploadSessionParameterSet
 import com.microsoft.graph.models.AttachmentItem
 import com.microsoft.graph.models.AttachmentType
@@ -48,7 +48,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
         }
         try {
             processAttachmentAndSendMsg(message, attachmentList)
-        } catch (GraphServiceException ex) {
+        } catch (ClientException ex) {
             log.error("Graph exception occurred, and message is : ${ex.message}")
             failedMessages.put(message, ex)
         } finally {
@@ -71,13 +71,15 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
                 .post(message)
         int mbSize = 1024 * 1024 //size in MiB
         attachmentList.each { FileAttachment attachment ->
+            attachment.oDataType = '#microsoft.graph.fileAttachment'
             AttachmentItem attachmentItem = new AttachmentItem()
             attachmentItem.isInline = attachment.isInline
             attachmentItem.name = attachment.name
             attachmentItem.attachmentType = AttachmentType.FILE
             attachmentItem.contentType = attachment.contentType ?: "application/octet-stream"
             attachmentItem.size = attachment.contentBytes.length as Long
-            attachment.oDataType = '#microsoft.graph.fileAttachment'
+            attachmentItem.oDataType = attachment.oDataType
+            attachmentItem.contentId = attachment.contentId
             if ((attachment.contentBytes.length / mbSize) > maxAttachmentSizeInMB) {
                 //more than 3MB size - send via upload session
                 UploadSession uploadSession = graphServiceClient.me()
