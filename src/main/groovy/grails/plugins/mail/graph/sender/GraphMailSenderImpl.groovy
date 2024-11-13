@@ -1,17 +1,20 @@
 package grails.plugins.mail.graph.sender
 
+import com.microsoft.graph.core.ClientException
+import com.microsoft.graph.http.GraphFatalServiceException
+import com.microsoft.graph.models.AttachmentCreateUploadSessionParameterSet
 import com.microsoft.graph.models.AttachmentItem
 import com.microsoft.graph.models.AttachmentType
 import com.microsoft.graph.models.FileAttachment
 import com.microsoft.graph.models.UploadSession
-import com.microsoft.graph.serviceclient.GraphServiceClient
-import com.microsoft.graph.core.tasks.LargeFileUploadTask
-import com.microsoft.graph.users.item.messages.item.attachments.createuploadsession.CreateUploadSessionPostRequestBody
-import com.microsoft.kiota.ApiException
+import com.microsoft.graph.requests.GraphServiceClient
+import com.microsoft.graph.tasks.LargeFileUploadTask
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.util.Holders
+import groovy.transform.CompileDynamic
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import com.microsoft.graph.models.Message
 import org.springframework.mail.MailAuthenticationException
@@ -23,6 +26,7 @@ import java.time.Clock
 import java.time.OffsetDateTime
 
 @Slf4j
+@CompileStatic
 class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     GraphApiClient graphApiClient
@@ -47,7 +51,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
         }
         try {
             processAttachmentAndSendMsg(message, attachmentList)
-        } catch (ApiException ex) {
+        } catch (ClientException ex) {
             log.error("Graph exception occurred, and message is : ${ex.message}")
             failedMessages.put(message, ex)
         } finally {
@@ -60,7 +64,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
         }
     }
 
-    private void processAttachmentAndSendMsg(Message message, List<FileAttachment> attachmentList) throws ApiException {
+    private void processAttachmentAndSendMsg(Message message, List<FileAttachment> attachmentList) throws GraphFatalServiceException {
         log.debug("Sending email to ${message.toRecipients ? (message?.toRecipients*.emailAddress*.address) : ''} with ${attachmentList?.size()} attachments using graph protocol")
         GraphServiceClient graphServiceClient = graphApiClient.standardMailClient
         message.attachments = null
@@ -70,22 +74,26 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
                 .post(message)
         int mbSize = 1024 * 1024 //size in MiB
         attachmentList.each { FileAttachment attachment ->
+            attachment.oDataType = '#microsoft.graph.fileAttachment'
             AttachmentItem attachmentItem = new AttachmentItem()
             attachmentItem.isInline = attachment.isInline
             attachmentItem.name = attachment.name
             attachmentItem.attachmentType = AttachmentType.FILE
             attachmentItem.contentType = attachment.contentType ?: "application/octet-stream"
             attachmentItem.size = attachment.contentBytes.length as Long
-            attachment.oDataType = '#microsoft.graph.fileAttachment'
+            attachmentItem.oDataType = attachment.oDataType
+            attachmentItem.contentId = attachment.contentId
             if ((attachment.contentBytes.length / mbSize) > maxAttachmentSizeInMB) {
-                CreateUploadSessionPostRequestBody createUploadSessionPostRequestBody = new CreateUploadSessionPostRequestBody()
-                createUploadSessionPostRequestBody.setAttachmentItem(attachmentItem)
                 //more than 3MB size - send via upload session
                 UploadSession uploadSession = graphServiceClient.me()
-                        .messages().byMessageId(draftMessage.id)
+                        .messages(draftMessage.id)
                         .attachments()
-                        .createUploadSession()
-                        .post(createUploadSessionPostRequestBody)
+                        .createUploadSession(AttachmentCreateUploadSessionParameterSet
+                                .newBuilder()
+                                .withAttachmentItem(attachmentItem)
+                                .build())
+                        .buildRequest()
+                        .post()
                 InputStream inputStream = new ByteArrayInputStream(attachment.contentBytes)
                 LargeFileUploadTask<AttachmentItem> largeFileUploadTask = new LargeFileUploadTask(uploadSession, graphServiceClient, inputStream, inputStream.available(), AttachmentItem.class)
                 //upload the file
@@ -111,7 +119,8 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
         log.debug("Sent email successfully")
     }
 
-    public void testConnection() throws ApiException {
+    @CompileDynamic
+    public void testConnection() throws GraphFatalServiceException {
         if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
             log.warn("Health Check is disabled by config")
             return

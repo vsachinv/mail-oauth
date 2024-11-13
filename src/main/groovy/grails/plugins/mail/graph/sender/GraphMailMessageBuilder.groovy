@@ -1,5 +1,6 @@
 package grails.plugins.mail.graph.sender
 
+import com.microsoft.graph.models.Attachment
 import com.microsoft.graph.models.BodyType
 import com.microsoft.graph.models.EmailAddress
 import com.microsoft.graph.models.FileAttachment
@@ -8,12 +9,16 @@ import com.microsoft.graph.models.InferenceClassificationType
 import com.microsoft.graph.models.InternetMessageHeader
 import com.microsoft.graph.models.ItemBody
 import com.microsoft.graph.models.Recipient
+import com.microsoft.graph.requests.AttachmentCollectionPage
+import com.microsoft.graph.requests.AttachmentCollectionResponse
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphMessage
 import grails.web.mime.MimeType
+import groovy.transform.CompileDynamic
+import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.apache.commons.io.FilenameUtils
 import org.grails.web.mime.DefaultMimeUtility
@@ -26,6 +31,7 @@ import org.springframework.util.StreamUtils
 import java.util.concurrent.ExecutorService
 
 @Slf4j
+@CompileStatic
 class GraphMailMessageBuilder extends MailMessageBuilder {
 
     public List<Recipient> bccRecipients = []
@@ -48,7 +54,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
 
     private final DefaultMimeUtility grailsMimeUtility
 
-    GraphMailMessageBuilder(MailSender mailSender, MailConfigurationProperties properties, MailMessageContentRenderer mailMessageContentRenderer, grailsMimeUtility) {
+    GraphMailMessageBuilder(MailSender mailSender, MailConfigurationProperties properties, MailMessageContentRenderer mailMessageContentRenderer, DefaultMimeUtility grailsMimeUtility) {
         super(mailSender, properties, mailMessageContentRenderer)
         this.grailsMimeUtility = grailsMimeUtility
     }
@@ -307,8 +313,9 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
+    @CompileDynamic
     MailMessage sendMessage(ExecutorService executorService) {
-        MailMessage message = finishMessage()
+        GraphMessage message = finishMessage()
         List attachments = new LinkedList<FileAttachment>(this.attachmentList)
         if (log.traceEnabled) {
             log.trace("Sending mail ${getDescription(message)}} ...")
@@ -317,13 +324,13 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         if (async) {
             executorService.execute({
                 try {
-                    mailSender.sendMailViaGraph(message, attachments)
+                    (mailSender as GraphMailSenderImpl).sendMailViaGraph(message, attachments)
                 } catch (Throwable t) {
                     if (log.errorEnabled) log.error("Failed to send email", t)
                 }
             } as Runnable)
         } else {
-            mailSender.sendMailViaGraph(message, attachments)
+            (mailSender as GraphMailSenderImpl).sendMailViaGraph(message, attachments)
         }
         if (log.traceEnabled) {
             log.trace("Sent mail ${getDescription(message)}} ...")
@@ -332,8 +339,8 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
-    MailMessage finishMessage() {
-        MailMessage message = new GraphMessage()
+    GraphMessage finishMessage() {
+        GraphMessage message = new GraphMessage()
         this.processGraphMessage()
         message.hasAttachments = this.hasAttachments
         message.importance = this.importance
@@ -352,7 +359,14 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
             message.from = this.from
         message.internetMessageHeaders = this.internetMessageHeaders
         if (message.hasAttachments) {
-            message.attachments = this.attachmentList
+            AttachmentCollectionResponse attachmentCollectionResponse = new AttachmentCollectionResponse()
+            List<Attachment> attachments = new LinkedList<Attachment>()
+            this.attachmentList.each {
+                attachments.add(it)
+            }
+            attachmentCollectionResponse.value = attachments
+            AttachmentCollectionPage attachmentCollectionPage = new AttachmentCollectionPage(attachmentCollectionResponse, null)
+            message.attachments = attachmentCollectionPage
         }
         message.body = this.body
 
