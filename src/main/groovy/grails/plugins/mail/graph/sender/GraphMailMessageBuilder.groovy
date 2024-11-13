@@ -8,8 +8,8 @@ import com.microsoft.graph.models.InferenceClassificationType
 import com.microsoft.graph.models.InternetMessageHeader
 import com.microsoft.graph.models.ItemBody
 import com.microsoft.graph.models.Recipient
-import grails.config.Config
 import grails.plugins.mail.GrailsMailException
+import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphMessage
@@ -48,8 +48,8 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
 
     private final DefaultMimeUtility grailsMimeUtility
 
-    GraphMailMessageBuilder(MailSender mailSender, Config config, MailMessageContentRenderer mailMessageContentRenderer, DefaultMimeUtility grailsMimeUtility) {
-        super(mailSender, config, mailMessageContentRenderer)
+    GraphMailMessageBuilder(MailSender mailSender, MailConfigurationProperties properties, MailMessageContentRenderer mailMessageContentRenderer, grailsMimeUtility) {
+        super(mailSender, properties, mailMessageContentRenderer)
         this.grailsMimeUtility = grailsMimeUtility
     }
 
