@@ -6,6 +6,7 @@ import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.reader.GraphEmailReaderService
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
+import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.graph.token.InMemoryReaderTokenStoreService
 import grails.plugins.mail.imap.reader.ImapEmailReaderService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
@@ -61,7 +62,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             mailConfig = grailsApplication.config.grails.mail
             println "Loading mail-oAuth configuration"
             mailConfigHash = mailConfig.hashCode()
-
+            stateStoreService(SessionStateStoreService)
             tokenStore(MemoryTokenStore)
 
             if (mailConfig.oAuth.enabled) {

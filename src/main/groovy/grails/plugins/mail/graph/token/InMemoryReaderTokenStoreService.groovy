@@ -24,6 +24,10 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     OAuthToken getTokenFor(GraphConfig graphConfig) {
         OAuthToken oAuthToken = this.store.get(graphConfig.configName)?.token
         if (!oAuthToken) {
+            if (graphConfig.daemon) {
+                refreshTokenFor(graphConfig)
+                return this.store.get(graphConfig.configName).token
+            }
             log.error("No Access token generated for $graphConfig.configName. Please generate")
             return null
         }
@@ -37,7 +41,12 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     @Override
     void refreshTokenFor(GraphConfig graphConfig) {
         MemoryTokenStore tokenStore = this.store.get(graphConfig.configName)
-        OAuth2AccessToken token = getAuthService(graphConfig).refreshAccessToken(tokenStore.token.refreshToken)
+        OAuth2AccessToken token
+        if (graphConfig.daemon) {
+            token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
+        } else {
+            token = getAuthService(graphConfig).refreshAccessToken(tokenStore.token.refreshToken)
+        }
         OAuthToken authToken = new OAuthToken(token)
         tokenStore.saveToken(authToken)
     }

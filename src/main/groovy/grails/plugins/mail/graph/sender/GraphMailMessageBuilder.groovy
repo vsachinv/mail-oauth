@@ -315,7 +315,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     @Override
     @CompileDynamic
     MailMessage sendMessage(ExecutorService executorService) {
-        MailMessage message = finishMessage()
+        GraphMessage message = finishMessage()
         List attachments = new LinkedList<FileAttachment>(this.attachmentList)
         if (log.traceEnabled) {
             log.trace("Sending mail ${getDescription(message)}} ...")
@@ -324,13 +324,13 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         if (async) {
             executorService.execute({
                 try {
-                    mailSender.sendMailViaGraph(message, attachments)
+                    (mailSender as GraphMailSenderImpl).sendMailViaGraph(message, attachments)
                 } catch (Throwable t) {
                     if (log.errorEnabled) log.error("Failed to send email", t)
                 }
             } as Runnable)
         } else {
-            mailSender.sendMailViaGraph(message, attachments)
+            (mailSender as GraphMailSenderImpl).sendMailViaGraph(message, attachments)
         }
         if (log.traceEnabled) {
             log.trace("Sent mail ${getDescription(message)}} ...")
@@ -339,8 +339,8 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
-    MailMessage finishMessage() {
-        MailMessage message = new GraphMessage()
+    GraphMessage finishMessage() {
+        GraphMessage message = new GraphMessage()
         this.processGraphMessage()
         message.hasAttachments = this.hasAttachments
         message.importance = this.importance
