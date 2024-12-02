@@ -9,8 +9,6 @@ import com.microsoft.graph.models.InferenceClassificationType
 import com.microsoft.graph.models.InternetMessageHeader
 import com.microsoft.graph.models.ItemBody
 import com.microsoft.graph.models.Recipient
-import com.microsoft.graph.requests.AttachmentCollectionPage
-import com.microsoft.graph.requests.AttachmentCollectionResponse
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
@@ -63,8 +61,8 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         this.multipart = this.multipart ?: MimeMessageHelper.MULTIPART_MODE_NO //not supported in graph SDK
         this.attachmentList = this.attachmentList ?: []
         this.hasAttachments = this.hasAttachments ?: false
-        this.importance = this.importance ?: Importance.NORMAL
-        this.inferenceClassification = this.inferenceClassification ?: InferenceClassificationType.FOCUSED
+        this.importance = this.importance ?: Importance.Normal
+        this.inferenceClassification = this.inferenceClassification ?: InferenceClassificationType.Focused
     }
 
     @Override
@@ -92,7 +90,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
             return
         }
         ItemBody itemBody = new ItemBody()
-        itemBody.contentType = this.hasHTMLBody ? BodyType.HTML : BodyType.TEXT
+        itemBody.contentType = this.hasHTMLBody ? BodyType.Html : BodyType.Text
         itemBody.content = String.valueOf(mailBody)
         this.body = itemBody
     }
@@ -182,11 +180,11 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     @SuppressWarnings("unused")
     void importance(int priority) {
         switch (priority) {
-            case 0: this.importance = Importance.LOW
+            case 0: this.importance = Importance.Low
                 break
-            case 1: this.importance = Importance.HIGH
+            case 1: this.importance = Importance.High
                 break
-            default: this.importance = Importance.NORMAL
+            default: this.importance = Importance.Normal
         }
     }
 
@@ -199,9 +197,9 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     @SuppressWarnings("unused")
     void inferenceClassification(int mailBoxFolder) {
         switch (mailBoxFolder) {
-            case 0: this.inferenceClassification = InferenceClassificationType.OTHER
+            case 0: this.inferenceClassification = InferenceClassificationType.Other
                 break
-            default: this.inferenceClassification = InferenceClassificationType.FOCUSED
+            default: this.inferenceClassification = InferenceClassificationType.Focused
         }
     }
 
@@ -313,7 +311,6 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
-    @CompileDynamic
     MailMessage sendMessage(ExecutorService executorService) {
         GraphMessage message = finishMessage()
         List attachments = new LinkedList<FileAttachment>(this.attachmentList)
@@ -353,24 +350,25 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         if (this.replyTo) {
             message.replyTo = this.replyTo
         }
-        message.inferenceClassification = this.inferenceClassification
+        if (this.inferenceClassification)
+            message.inferenceClassification = this.inferenceClassification
         message.subject = this.subject
         if (this.from)
             message.from = this.from
-        message.internetMessageHeaders = this.internetMessageHeaders
+        if (this.internetMessageHeaders) //if this check missing then giving UnableToDeserializePostBody error.
+            message.internetMessageHeaders = this.internetMessageHeaders
         if (message.hasAttachments) {
-            AttachmentCollectionResponse attachmentCollectionResponse = new AttachmentCollectionResponse()
             List<Attachment> attachments = new LinkedList<Attachment>()
             this.attachmentList.each {
                 attachments.add(it)
             }
-            attachmentCollectionResponse.value = attachments
-            AttachmentCollectionPage attachmentCollectionPage = new AttachmentCollectionPage(attachmentCollectionResponse, null)
-            message.attachments = attachmentCollectionPage
+            message.attachments = attachments
+        } else {
+            message.attachments = []
         }
         message.body = this.body
 
-        if (defaultFrom) {
+        if (!message.from && defaultFrom) {
             message.from = defaultFrom
         }
 

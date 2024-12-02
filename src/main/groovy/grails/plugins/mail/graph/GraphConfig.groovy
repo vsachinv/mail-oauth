@@ -14,4 +14,5 @@ class GraphConfig implements Serializable {
     String scopes
     String callbackUrl
     boolean daemon = false
+    boolean debug = false
 }

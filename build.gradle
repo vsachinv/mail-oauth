@@ -4,10 +4,8 @@ plugins {
     id "org.grails.grails-plugin"
     id "com.bertramlabs.asset-pipeline"
     id "idea"
-    id "application"
     id "eclipse"
     id "maven-publish"
-    id "java-library"
 }
 
 group "org.grails.plugins"
@@ -20,6 +18,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven { url "https://repo.grails.org/grails/core" }
+    maven { url "https://repo1.maven.org/maven2" }
 }
 
 configurations {
@@ -51,7 +50,8 @@ dependencies {
     implementation 'com.github.scribejava:scribejava-core:8.3.3'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'
     implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.6.6'
-    implementation 'com.microsoft.graph:microsoft-graph:5.+'
+    implementation 'com.microsoft.graph:microsoft-graph:6.+'
+    implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
 }
 
 task sourceJar(type: Jar) {
@@ -106,19 +106,6 @@ tasks.withType(Test) {
 publishing {
     publications {
         mavenJar(MavenPublication) {
-            pom.withXml {
-                def pomNode = asNode()
-                pomNode.dependencyManagement.replaceNode {}
-
-                // simply remove dependencies without a version
-                // version-less dependencies are handled with dependencyManagement
-                // see https://github.com/spring-gradle-plugins/dependency-management-plugin/issues/8 for more complete solutions
-                pomNode.dependencies.dependency.findAll {
-                    it.version.text().isEmpty()
-                }.each {
-                    it.replaceNode {}
-                }
-            }
             from components.java
             artifact sourceJar
         }
