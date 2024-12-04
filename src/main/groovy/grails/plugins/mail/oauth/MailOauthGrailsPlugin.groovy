@@ -138,7 +138,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                     graphApiClient = ref('graphApiClient')
                 }
             } else {
-                mailSender(OAuthMailSenderImpl, ref('mailSession'), ref('mailConfigurationProperties')) {
+                mailSender(OAuthMailSenderImpl, (config.jndiName ? ref('mailSession') : null), ref('mailConfigurationProperties')) {
                     mailOAuthService = ref('mailOAuthService')
                 }
             }
