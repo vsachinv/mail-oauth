@@ -4,5 +4,5 @@ This plugin adds capability to send emails using Microsoft Graph API and provide
 
 For Grails 6.x.x
 ```groovy
-implementation "org.grails.plugins:mail-oauth:6.0-JDK11-1.0-M1"
+implementation "org.grails.plugins:mail-oauth:6.0-JDK11-1.0-M3"
 ```
