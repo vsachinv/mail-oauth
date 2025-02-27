@@ -2,6 +2,11 @@ package grails.plugins.mail.oauth
 
 import grails.util.Holders
 import groovy.util.logging.Slf4j
+import org.springframework.mail.MailAuthenticationException
+
+import javax.mail.internet.AddressException
+import javax.mail.internet.InternetAddress
+import com.github.scribejava.core.model.OAuth2AccessTokenErrorResponse
 
 @Slf4j
 class MailOAuthController {
@@ -65,6 +70,7 @@ class MailOAuthController {
 
     def sendTestMail(String email) {
         try {
+	    new InternetAddress(email).validate()
             sendMail {
                 multipart false
                 to email
@@ -72,9 +78,18 @@ class MailOAuthController {
                 body "test mail created at ${new Date()}"
             }
             flash.message = "Test mail sent to ${email}"
+        } catch(AddressException addressException) {
+            log.error("Invalid email address : ${email} reveived. Test mail failed with error: ", addressException)
+            flash.error = "Test mail failed due to invalid email address. Please enter valid email address."
+        } catch(OAuth2AccessTokenErrorResponse authException) {
+            log.error("Test mail failed with OAuth2 access token error: ", authException)
+            flash.error = "Test mail failed with OAuth2 Access Token Errors. Please contact your Administrator."
+        } catch (MailAuthenticationException mailAuthenticationException) {
+            log.error('Exception while sending test email due to', mailAuthenticationException)
+            flash.error = "Authentication failed for configured email. Please contact your Administrator."
         } catch (Exception ex) {
             log.error('Exception while sending test email due to', ex)
-            flash.error = "Test mail failed due to ${ex.message}"
+            flash.error = "Test mail failed. Please contact your Administrator."
         }
         redirect(uri: uri)
     }
