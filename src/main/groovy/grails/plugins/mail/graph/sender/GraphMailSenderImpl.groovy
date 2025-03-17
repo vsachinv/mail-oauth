@@ -78,7 +78,6 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
             attachmentItem.attachmentType = AttachmentType.FILE
             attachmentItem.contentType = attachment.contentType ?: "application/octet-stream"
             attachmentItem.size = attachment.contentBytes.length as Long
-            attachmentItem.oDataType = attachment.oDataType
             attachmentItem.contentId = attachment.contentId
             if ((attachment.contentBytes.length / mbSize) > maxAttachmentSizeInMB) {
                 //more than 3MB size - send via upload session
