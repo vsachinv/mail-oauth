@@ -2,7 +2,6 @@ plugins {
     id "com.gorylenko.gradle-git-properties"
     id "io.spring.dependency-management"
     id "org.grails.grails-plugin"
-    id "com.bertramlabs.asset-pipeline"
     id "idea"
     id "eclipse"
     id "maven-publish"
@@ -41,7 +40,6 @@ dependencies {
     implementation "org.grails:grails-dependencies"
     implementation 'javax.servlet:javax.servlet-api:4.0.1'
     implementation "commons-io:commons-io:2.16.1"
-    runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:4.3.0"
     testImplementation "org.grails:grails-gorm-testing-support"
     testImplementation "org.mockito:mockito-core"
     testImplementation "org.grails:grails-web-testing-support"

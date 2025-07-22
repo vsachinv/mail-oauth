@@ -8,6 +8,7 @@ class GraphConfig implements Serializable {
     private static final long serialVersionUID = 1952358793540268673L
 
     String configName //Should be unique and mandatory
+    String emailAddress
     String tenantId
     String clientId
     String secretId

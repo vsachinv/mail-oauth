@@ -21,6 +21,10 @@ grails {
         //Refer examples folder for usage of reader functions
         reader {
             enabled = false
+            graph {
+                callbackUrl = 'http://localhost:8082/readerToken/callback'
+                redirect_uri = '/emailConfig'
+            }
             health.check.disabled = false
         }
     }

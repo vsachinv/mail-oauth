@@ -22,7 +22,6 @@ import java.util.function.Consumer
 class GraphEmailReaderService {
 
     GraphApiClient graphApiClient
-
     ReaderTokenStoreService readerTokenStoreService
 
     //provide graph config with access token, expire time and api scope, make sure token is not not expired, if expired, regenerate
@@ -33,23 +32,31 @@ class GraphEmailReaderService {
     */
 
     MessageCollectionResponse listMessages(GraphConfig graphConfig, String mailFolderId, int topMaxMessage) {
-        log.debug("Reading messages from ${mailFolderId} folder for config ${graphConfig.configName}")
-        mailFolderId = mailFolderId ?: 'Inbox'
-        topMaxMessage = topMaxMessage ?: 10
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        MessageCollectionResponse messages = serviceClient
-                .me()
-                .mailFolders()
-                .byMailFolderId(mailFolderId)
-                .messages()
-                .get(new Consumer<MessagesRequestBuilder.GetRequestConfiguration>() {
-                    @Override
-                    void accept(MessagesRequestBuilder.GetRequestConfiguration requestConfiguration) {
-                        requestConfiguration.queryParameters.top = topMaxMessage
-                    }
-                })
+        log.info("[GRAPH_EMAIL] [LIST_MESSAGES] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | FOLDER=${mailFolderId ?: 'Inbox'}")
 
-        return messages
+        try {
+            mailFolderId = mailFolderId ?: 'Inbox'
+            topMaxMessage = topMaxMessage ?: 10
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+
+            MessageCollectionResponse messages = serviceClient
+                    .me()
+                    .mailFolders()
+                    .byMailFolderId(mailFolderId)
+                    .messages()
+                    .get(new Consumer<MessagesRequestBuilder.GetRequestConfiguration>() {
+                        @Override
+                        void accept(MessagesRequestBuilder.GetRequestConfiguration requestConfiguration) {
+                            requestConfiguration.queryParameters.top = topMaxMessage
+                        }
+                    })
+
+            log.info("[GRAPH_EMAIL] [LIST_MESSAGES] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | COUNT=${messages?.value?.size()}")
+            return messages
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [LIST_MESSAGES] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
 
@@ -61,13 +68,20 @@ class GraphEmailReaderService {
     */
 
     Message moveMessage(GraphConfig graphConfig, String messageId, String destinationFolderId) {
-        log.debug("Moving message ${messageId} to ${destinationFolderId} for config ${graphConfig.configName}")
-        destinationFolderId = destinationFolderId ?: "deleteditems" //default is to delete folder
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        MovePostRequestBody movePostRequestBody = new MovePostRequestBody()
-        movePostRequestBody.setDestinationId(destinationFolderId);
-        Message message = serviceClient.me().messages().byMessageId(messageId).move().post(movePostRequestBody);
-        return message
+        log.info("[GRAPH_EMAIL] [MOVE_MESSAGE] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | DEST_FOLDER=${destinationFolderId ?: 'deleteditems'}")
+
+        try {
+            destinationFolderId = destinationFolderId ?: "deleteditems" //default is to delete folder
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+            MovePostRequestBody movePostRequestBody = new MovePostRequestBody()
+            movePostRequestBody.setDestinationId(destinationFolderId);
+            Message message = serviceClient.me().messages().byMessageId(messageId).move().post(movePostRequestBody);
+            log.info("[GRAPH_EMAIL] [MOVE_MESSAGE] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | NEW_FOLDER=${destinationFolderId}")
+            return message
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [MOVE_MESSAGE] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
     /*
@@ -77,10 +91,16 @@ class GraphEmailReaderService {
     */
 
     void deleteMessageById(GraphConfig graphConfig, String messageId) {
-        log.debug("Deleting message ${messageId} for config ${graphConfig.configName}")
-        //update a specific message
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        serviceClient.me().messages().byMessageId(messageId).delete()
+        log.info("[GRAPH_EMAIL] [DELETE_MESSAGE] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId}")
+
+        try {
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+            serviceClient.me().messages().byMessageId(messageId).delete()
+            log.info("[GRAPH_EMAIL] [DELETE_MESSAGE] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId}")
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [DELETE_MESSAGE] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
     /*
@@ -89,13 +109,20 @@ class GraphEmailReaderService {
     */
 
     AttachmentCollectionResponse getMessageAttachments(GraphConfig graphConfig, String messageId) {
-        log.debug("Collecting message ${messageId} attachmnets for config ${graphConfig.configName}")
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        AttachmentCollectionResponse attachments = serviceClient.me()
-                .messages().byMessageId(messageId)
-                .attachments()
-                .get();
-        return attachments
+        log.info("[GRAPH_EMAIL] [COLLECT_ATTACHMENTS] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId}")
+
+        try {
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+            AttachmentCollectionResponse attachments = serviceClient
+                    .me().messages().byMessageId(messageId)
+                    .attachments().get()
+
+            log.info("[GRAPH_EMAIL] [COLLECT_ATTACHMENTS] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | COUNT=${attachments?.value?.size()}")
+            return attachments
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [COLLECT_ATTACHMENTS] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
     /*
@@ -104,12 +131,17 @@ class GraphEmailReaderService {
     */
 
     MailFolderCollectionResponse listMailFolders(GraphConfig graphConfig) {
-        log.debug("Collecting mail folders for config ${graphConfig.configName}")
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        MailFolderCollectionResponse mailFolders = serviceClient.me()
-                .mailFolders()
-                .get()
-        return mailFolders
+        log.info("[GRAPH_EMAIL] [COLLECT_MAIL_FOLDERS] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress}")
+
+        try {
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+            MailFolderCollectionResponse folders = serviceClient.me().mailFolders().get()
+            log.info("[GRAPH_EMAIL] [COLLECT_MAIL_FOLDERS] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | COUNT=${folders?.value?.size()}")
+            return folders
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [COLLECT_MAIL_FOLDERS] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
     /*
@@ -118,20 +150,33 @@ class GraphEmailReaderService {
     */
 
     MailFolder createMailFolder(GraphConfig graphConfig, String mailFolderName) {
-        log.debug("Creating mail folder ${mailFolderName} for config ${graphConfig.configName}")
-        MailFolder mailFolder = new MailFolder(displayName: mailFolderName, isHidden: false)
-        GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
-        return serviceClient.me()
-                .mailFolders()
-                .post(mailFolder)
+        log.info("[GRAPH_EMAIL] [CREATE_MAIL_FOLDER] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | FOLDER_NAME=${mailFolderName}")
+
+        try {
+            MailFolder mailFolder = new MailFolder(displayName: mailFolderName, isHidden: false)
+            GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
+            MailFolder created = serviceClient.me().mailFolders().post(mailFolder)
+            log.info("[GRAPH_EMAIL] [CREATE_MAIL_FOLDER] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress} | FOLDER_NAME=${mailFolderName}")
+            return created
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [CREATE_MAIL_FOLDER] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
     }
 
     void testConnection(GraphConfig graphConfig) throws ClientException {
         if (Holders.config.getProperty('grails.mail.reader.health.check.disabled', Boolean)) {
-            log.warn("Health Check is disabled by config so no checking for $graphConfig.configName")
+            log.warn("[GRAPH_EMAIL] [HEALTH_CHECK] Disabled via config so no checking for EMAIL_ADDRESS=${graphConfig.emailAddress}")
             return
         }
-        readerTokenStoreService.refreshTokenFor(graphConfig)
-    }
 
+        try {
+            log.info("[GRAPH_EMAIL] [HEALTH_CHECK] [STARTED] - EMAIL_ADDRESS=${graphConfig.emailAddress}")
+            readerTokenStoreService.refreshTokenFor(graphConfig)
+            log.info("[GRAPH_EMAIL] [HEALTH_CHECK] [SUCCESS] - EMAIL_ADDRESS=${graphConfig.emailAddress}")
+        } catch (Exception ex) {
+            log.error("[GRAPH_EMAIL] [HEALTH_CHECK] [FAILED] - EMAIL_ADDRESS=${graphConfig.emailAddress} | ERROR=${ex.message}", ex)
+            throw ex
+        }
+    }
 }

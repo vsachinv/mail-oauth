@@ -22,7 +22,7 @@ class ImapEmailReaderService {
         imapConfig.otherProperties?.each {
             properties.put(it.key, it.value)
         }
-        log.debug("Setting up ${properties.toString()} for imap connection ${imapConfig.configName}")
+        log.debug("[GRAPH_EMAIL] [IMAP_READER] [SESSION_STORE] Setting up ${properties.toString()} for imap connection ${imapConfig.configName}")
         Session.getInstance(properties).getStore(imapConfig.protocol)
     }
 
@@ -32,7 +32,7 @@ class ImapEmailReaderService {
 
     private String getPassword(ImapConfig imapConfig) {
         if (imapConfig.oAuthEnabled) {
-            log.debug("Returning OAuth2 access token for ${imapConfig.configName}")
+            log.debug("[GRAPH_EMAIL] [IMAP_READER] [GET_PASSWORD] Returning OAuth2 access token for ${imapConfig.configName}")
             OAuthToken oAuthToken = readerTokenStoreService.getTokenFor(imapConfig.graphConfig)
             if (!oAuthToken) {
                 throw new Exception("Valid OAuth Token not found for ${imapConfig.configName} in token repo. Please get the same generated first")
@@ -49,7 +49,7 @@ class ImapEmailReaderService {
     Folder createFolder(Store store, String folderName) {
         Folder folder = store.defaultFolder.getFolder(folderName)
         if (!folder.exists()) {
-            log.debug("Creating new mail folder as $folderName using Imap protocol")
+            log.debug("[GRAPH_EMAIL] [IMAP_READER] [CREATE_MAIL_FOLDER] - FOLDER_NAME=${folderName}")
             folder.create(Folder.HOLDS_MESSAGES);
         }
         return folder
@@ -60,7 +60,7 @@ class ImapEmailReaderService {
             folder?.isOpen() ? folder.close(true) : ''
             store?.isConnected() ? store?.close() : ''
         } catch (Exception ex) {
-            log.warn("Exception while closing imap connections error: ${ex.message}")
+            log.warn("[GRAPH_EMAIL] [IMAP_READER] [CLOSE_CONNECTION] Exception while closing imap connections error: ${ex.message}")
         }
     }
 
