@@ -26,7 +26,7 @@ class MailOAuthController {
             return
         }
 
-        log.info("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
         redirect(url: mailOAuthService.generateAuthCodeURL())
     }
 
@@ -38,7 +38,7 @@ class MailOAuthController {
     }
 
     def revoke() {
-        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
+        log.debug("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
         mailOAuthService.revokeToken()
         flash.message = "Token Revoked"
         redirect(uri: uri)
@@ -52,7 +52,7 @@ class MailOAuthController {
             return
         }
 
-        log.info("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state}")
+        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state}")
         mailOAuthService.generateAccessToken(code, state)
         flash.message = "Successfully generated access token for $code"
         redirect(uri: uri)
@@ -75,7 +75,7 @@ class MailOAuthController {
             return
         }
 
-        log.info("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
+        log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
         flash.message = "Access token is valid till ${token.expireAt} UTC."
         redirect(uri: uri)
     }
