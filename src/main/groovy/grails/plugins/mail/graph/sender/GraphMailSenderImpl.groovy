@@ -6,6 +6,7 @@ import com.microsoft.graph.models.FileAttachment
 import com.microsoft.graph.models.UploadSession
 import com.microsoft.graph.serviceclient.GraphServiceClient
 import com.microsoft.graph.core.tasks.LargeFileUploadTask
+import com.microsoft.graph.users.item.UserItemRequestBuilder
 import com.microsoft.graph.users.item.messages.item.attachments.createuploadsession.CreateUploadSessionPostRequestBody
 import com.microsoft.kiota.ApiException
 import com.microsoft.kiota.serialization.ParsableFactory
@@ -32,16 +33,17 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     GraphApiClient graphApiClient
     int maxAttachmentSizeInMB = 3
+    boolean daemon = false
 
     @Override
     protected void doSend(MimeMessage[] mimeMessages, Object[] originalMessages) throws MailException {
-        log.warn("Invalid method of GraphMailSenderImpl getting called")
-        throw new GrailsMailException("Please do use sendMailViaGraph method rather doSend")
+        log.warn("[GRAPH_EMAIL] [UNSUPPORTED_METHOD] doSend() called — This method is not supported, please use sendMailViaGraph.")
+        throw new GrailsMailException("Please use sendMailViaGraph instead of doSend.")
     }
 
     void sendMailViaGraph(Message message, List<FileAttachment> attachmentList) throws MailException {
         Map<Object, Exception> failedMessages = new LinkedHashMap<Object, Exception>()
-        boolean connectionStatus = mailOAuthService.accessToken
+        boolean connectionStatus = !!mailOAuthService.accessToken
         try {
             if (!connectionStatus) {
                 throw new MailAuthenticationException(new AuthenticationFailedException())
@@ -51,27 +53,39 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
             throw new MailSendException("Mail server connection failed", ex, failedMessages)
         }
         try {
+            log.debug("[GRAPH_EMAIL] [SEND_EMAIL] [STARTED] - Recipients=${message?.toRecipients*.emailAddress*.address} - From=${message?.from?.emailAddress?.address} | Attachments=${attachmentList?.size()}")
             processAttachmentAndSendMsg(message, attachmentList)
+            log.info("[GRAPH_EMAIL] [SEND_EMAIL] [SUCCESS] - Email sent to ${message?.toRecipients*.emailAddress*.address} - From=${message?.from?.emailAddress?.address}")
         } catch (ApiException ex) {
-            log.error("Graph exception occurred, and message is : ${ex.message}")
+            log.error("[GRAPH_EMAIL] [SEND_EMAIL] [FAILED] - Graph API exception: ${ex.message}", ex)
             failedMessages.put(message, ex)
         } finally {
             if (!connectionStatus) {
-                log.error("Failed to connect to MS Graph API, please check app configuration and refresh token validity.")
+                log.error("[GRAPH_EMAIL] [SEND_EMAIL] [FAILED] - Connection to Graph server failed. Check client ID, secret, or token validity.")
             }
         }
         if (!failedMessages.isEmpty()) {
+            log.warn("[GRAPH_EMAIL] [SEND_EMAIL] [PARTIAL_FAILURE] - Some emails failed to send.")
             throw new MailSendException(failedMessages)
         }
     }
 
     private void processAttachmentAndSendMsg(Message message, List<FileAttachment> attachmentList) throws ApiException {
-        log.debug("Sending email to ${message.toRecipients ? (message?.toRecipients*.emailAddress*.address) : ''} with ${attachmentList?.size()} attachments using graph protocol")
+        log.debug("[GRAPH_EMAIL] [SEND_EMAIL] [PROCESS_ATTACHMENT_MSG] - Sending email to ${message.toRecipients ? (message?.toRecipients*.emailAddress*.address) : ''} with ${attachmentList?.size()} attachments using graph protocol")
         GraphServiceClient graphServiceClient = graphApiClient.standardMailClient
         message.attachments = []
-        //create a draft message
-        Message draftMessage = graphServiceClient.me().messages().post(message)
+        UserItemRequestBuilder userItemRequestBuilder = graphServiceClient.me()
+        // DefaultFrom is mandatory in case of daemon. and if username is different then it means using shared account (Use default from config for shared).
+        if (daemon || username != message.from.emailAddress.address) {
+            log.debug("[GRAPH_EMAIL] [SEND_EMAIL] [PROCESS_ATTACHMENT_MSG] - Sending email as ${message.from.emailAddress.address}")
+            // If sending as another user (daemon apps)
+            userItemRequestBuilder = graphServiceClient.users().byUserId(message.from.emailAddress.address)
+        }
+        // Step 1: create a draft message
+        Message draftMessage = userItemRequestBuilder.messages().post(message)
+        log.debug("Draft created: id=${draftMessage.id}, changeKey=${draftMessage.changeKey}")
         int mbSize = 1024 * 1024 //size in MiB
+        // Step 2: upload attachments (normal or via upload session)
         attachmentList.each { FileAttachment attachment ->
             attachment.odataType = '#microsoft.graph.fileAttachment'
             AttachmentItem attachmentItem = new AttachmentItem()
@@ -82,10 +96,11 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
             attachmentItem.size = attachment.contentBytes.length as Long
             attachmentItem.contentId = attachment.contentId
             if ((attachment.contentBytes.length / mbSize) > maxAttachmentSizeInMB) {
+                log.debug("[GRAPH_EMAIL] [ATTACHMENT] Uploading '${attachment.name}' via draft upload as size is large")
                 CreateUploadSessionPostRequestBody createUploadSessionPostRequestBody = new CreateUploadSessionPostRequestBody()
                 createUploadSessionPostRequestBody.setAttachmentItem(attachmentItem)
                 //more than 3MB size - send via upload session
-                UploadSession uploadSession = graphServiceClient.me()
+                UploadSession uploadSession = userItemRequestBuilder
                         .messages().byMessageId(draftMessage.id)
                         .attachments()
                         .createUploadSession()
@@ -102,22 +117,28 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
             } else {
                 //less than 3MB size - send via normal upload
-                graphServiceClient.me().messages().byMessageId(draftMessage.id).attachments()
+                log.debug("[GRAPH_EMAIL] [ATTACHMENT] [INLINE] Uploading '${attachment.name}' via normal post.")
+                userItemRequestBuilder.messages().byMessageId(draftMessage.id).attachments()
                         .post(attachment)
             }
         }
-        draftMessage.sentDateTime = OffsetDateTime.now(Clock.systemUTC())
-        //send out the draft message
-        graphServiceClient.me().messages().byMessageId(draftMessage.id).send().post()
-        log.debug("Sent email successfully")
+        // Step 3: re-fetch the draft to get the latest changeKey
+        Message refreshedDraft = userItemRequestBuilder.messages().byMessageId(draftMessage.id).get()
+        log.debug("[GRAPH_EMAIL] [SEND_EMAIL] Draft refreshed: id=${refreshedDraft.id}, changeKey=${refreshedDraft.changeKey}")
+
+        // Step 4: send the refreshed draft
+        userItemRequestBuilder.messages().byMessageId(refreshedDraft.id).send().post()
+        log.debug("[GRAPH_EMAIL] [SEND_EMAIL] [FINISHED] - Sent draft message ID: ${refreshedDraft.id}")
     }
 
     @CompileDynamic
     public void testConnection() throws ApiException {
         if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
-            log.warn("Health Check is disabled by config")
+            log.warn("[GRAPH_EMAIL] [HEALTH_CHECK] Disabled via config.")
             return
         }
+        log.debug("[GRAPH_EMAIL] [HEALTH_CHECK] Testing connection with current access token.")
         mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken())
+        log.info("[GRAPH_EMAIL] [HEALTH_CHECK] Token refresh successful.")
     }
 }

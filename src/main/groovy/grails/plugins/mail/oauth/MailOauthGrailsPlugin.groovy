@@ -75,7 +75,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                         mailOAuthService = ref('mailOAuthService')
                     }
 
-                    graphApiClient(GraphApiClient, ref('tokenBasedAuthCredential'), mailConfig.oAuth.api_scope, mailConfig.oAuth.debug ?: false)
+                    graphApiClient(GraphApiClient, ref('tokenBasedAuthCredential'), mailConfig.oAuth.api_scope, mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
 
                     mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
                         it.autowire = true
@@ -90,7 +90,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 readerTokenStoreService(InMemoryReaderTokenStoreService)
                 println "Enabled mail-reader graph configuration"
                 if (!mailConfig.oAuth.enabled || !mailConfig.oAuth.graph.enabled) {
-                    graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false)
+                    graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
                 }
                 graphEmailReaderService(GraphEmailReaderService) {
                     graphApiClient = ref('graphApiClient')
@@ -134,6 +134,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                     if (config.oAuth.graph.enabled && config.oAuth.graph.attachmentMax) {
                         maxAttachmentSizeInMB = config.oAuth.graph.attachmentMax
                     }
+                    daemon = !!config.oAuth.daemon
                     mailOAuthService = ref('mailOAuthService')
                     graphApiClient = ref('graphApiClient')
                 }

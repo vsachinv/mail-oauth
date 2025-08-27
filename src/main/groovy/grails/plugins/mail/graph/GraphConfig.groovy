@@ -13,6 +13,8 @@ class GraphConfig implements Serializable {
     String secretId
     String scopes
     String callbackUrl
+    //IF daemon then emailAddress is mandatory or using shared account then also can use.
+    String emailAddress = null
     boolean daemon = false
     boolean debug = false
 }

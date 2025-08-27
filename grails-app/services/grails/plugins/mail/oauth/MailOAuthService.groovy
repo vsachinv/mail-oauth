@@ -60,7 +60,7 @@ class MailOAuthService implements GrailsConfigurationAware {
             if(daemon){
                 return refreshAccessToken(null)
             }
-            log.error("No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
+            log.error("GRAPH_EMAIL] [GET_ACCESS_TOKEN] No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
             return null
         }
         if (oAuthToken.expireAt > new Date()) {

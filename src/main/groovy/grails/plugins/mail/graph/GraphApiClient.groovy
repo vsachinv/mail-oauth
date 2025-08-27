@@ -11,6 +11,7 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 
 @Slf4j
@@ -20,14 +21,25 @@ class GraphApiClient {
     private GraphServiceClient graphServiceClient
     private TokenCredential tokenBasedAuthCredential
     private String scopes
+    private Long connectTimeout // In seconds
+    private Long writeTimeout // In seconds
+    private Long readTimeout // In seconds
+
     //To Avoid multiple graphClient Connections for same config as it does exhaust socket ports.
     private Map<String, GraphServiceClient> cache = new ConcurrentHashMap<String, GraphServiceClient>([:])
 
-    GraphApiClient(TokenCredential tokenBasedAuthCredential, String scopes, Boolean debug) {
+    GraphApiClient(TokenCredential tokenBasedAuthCredential, String scopes, Boolean debug, Long connectTimeout, Long writeTimeout, Long readTimeout) {
         this.tokenBasedAuthCredential = tokenBasedAuthCredential
         this.scopes = scopes
+        this.connectTimeout = connectTimeout
+        this.writeTimeout = writeTimeout
+        this.readTimeout = readTimeout
         AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(tokenBasedAuthCredential, new String[]{}, scopes.split(" "))
         OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
+        httpClientBuilder.connectTimeout(connectTimeout, TimeUnit.SECONDS)   // connection timeout
+        httpClientBuilder.writeTimeout(writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
+        httpClientBuilder.readTimeout(readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
+
         if (debug) {
             httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler())
         }
@@ -42,6 +54,10 @@ class GraphApiClient {
         if (!cache.get(graphConfig.configName) || reset) {
             AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(new AdhocTokenCredential(graphConfig: graphConfig), new String[]{}, graphConfig.scopes.split(" "))
             OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
+            httpClientBuilder.connectTimeout(this.connectTimeout, TimeUnit.SECONDS)   // connection timeout
+            httpClientBuilder.writeTimeout(this.writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
+            httpClientBuilder.readTimeout(this.readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
+
             if (graphConfig.debug) {
                 httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(graphConfig.configName))
             }
