@@ -43,6 +43,9 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         MemoryTokenStore tokenStore = this.store.get(graphConfig.configName)
         OAuth2AccessToken token
         if (graphConfig.daemon) {
+            if (!graphConfig.emailAddress) {
+                throw new Exception("Graph email has invalid config as daemon is true but emailAddress is not set")
+            }
             token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
         } else {
             token = getAuthService(graphConfig).refreshAccessToken(tokenStore.token.refreshToken)
