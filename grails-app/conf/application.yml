@@ -119,7 +119,9 @@ environments:
                 defaultTransactionIsolation: 2 # TRANSACTION_READ_COMMITTED
 grails:
     mail:
+        username: xyz
         oAuth:
+            daemon: false
             enabled: false
             client_id: b5351907-3792-4590-ac3a-ee9ba737e7d1
             secret_val: DvW7Q~CaMbkKrX2DDifpHQbOOasr3k-RrmSAN

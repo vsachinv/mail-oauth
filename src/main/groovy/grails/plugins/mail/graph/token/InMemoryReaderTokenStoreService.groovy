@@ -4,6 +4,8 @@ import com.github.scribejava.apis.MicrosoftAzureActiveDirectory20Api
 import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.model.OAuth2AccessToken
 import com.github.scribejava.core.oauth.OAuth20Service
+import com.github.scribejava.core.revoke.TokenTypeHint
+import grails.plugins.mail.oauth.MailOAuthUtil
 import grails.plugins.mail.graph.GraphConfig
 import grails.plugins.mail.oauth.token.MemoryTokenStore
 import grails.plugins.mail.oauth.token.OAuthToken
@@ -59,15 +61,27 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         String state = UUID.randomUUID().toString().replaceAll('-', '')
         configStore.put(state, graphConfig)
         log.debug("Generated Auth URL for ${graphConfig.configName} with state ${state} ")
+        if (graphConfig.daemon) {
+            return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.tenantId, graphConfig.clientId)
+        }
         return getAuthService(graphConfig).getAuthorizationUrl(state)
     }
 
     @Override
     OAuthToken generateAccessTokenFor(GraphConfig graphConfig, String code, String state) {
-        graphConfig = configStore.get(state)
+        if (!graphConfig)
+            graphConfig = configStore.get(state)
         log.debug("Retrieved config from state via ${state} for ${graphConfig?.configName}")
         MemoryTokenStore tokenStore = new MemoryTokenStore()
-        OAuth2AccessToken token = getAuthService(graphConfig).getAccessToken(code)
+        OAuth2AccessToken token
+        if (graphConfig.daemon) {
+            token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
+        } else {
+            token = getAuthService(graphConfig).getAccessToken(code)
+            //TODO need to see what we can do for shared emailAddress validation in case of delegate flow.
+            if (graphConfig.emailAddress && !graphConfig.isShared)
+                MailOAuthUtil.validateToken(token.accessToken, graphConfig.emailAddress, getAuthService(graphConfig))
+        }
         OAuthToken authToken = new OAuthToken(token)
         tokenStore.saveToken(authToken)
         this.store.put(graphConfig.configName, tokenStore)
@@ -77,7 +91,35 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     @Override
     void revokeTokenFor(GraphConfig graphConfig) {
         MemoryTokenStore tokenStore = this.store.get(graphConfig.configName)
+        OAuthToken oAuthToken = tokenStore.getToken()
+        if (!oAuthToken) {
+            log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found for ${graphConfig.configName}")
+            return
+        }
+        // clear locally stored token
         tokenStore.revokeToken()
+
+        OAuth20Service authService = getAuthService(graphConfig)
+
+        // revoke refresh token first (stops future access)
+        if (oAuthToken.refreshToken) {
+            try {
+                authService.revokeToken(oAuthToken.refreshToken, TokenTypeHint.REFRESH_TOKEN)
+                log.debug("[GRAPH_READER_EMAIL] [REVOKE_TOKEN] Revoked refresh token")
+            } catch (Exception e) {
+                log.warn("[GRAPH_READER_EMAIL] [REVOKE_TOKEN] Failed to revoke refresh token due to : ${e.message}")
+            }
+        }
+
+        // revoke access token (optional, expires in ~1h anyway)
+        if (oAuthToken.accessToken) {
+            try {
+                authService.revokeToken(oAuthToken.accessToken, TokenTypeHint.ACCESS_TOKEN)
+                log.debug("[GRAPH_READER_EMAIL] [REVOKE_TOKEN] Revoked access token")
+            } catch (Exception e) {
+                log.warn("[GRAPH_READER_EMAIL] [REVOKE_TOKEN] Failed to revoke access token due to : ${e.message}")
+            }
+        }
     }
 
     private OAuth20Service getAuthService(GraphConfig graphConfig) {

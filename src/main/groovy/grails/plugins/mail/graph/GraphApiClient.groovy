@@ -36,9 +36,9 @@ class GraphApiClient {
         this.readTimeout = readTimeout
         AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(tokenBasedAuthCredential, new String[]{}, scopes.split(" "))
         OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
-        httpClientBuilder.connectTimeout(connectTimeout, TimeUnit.SECONDS)   // connection timeout
-        httpClientBuilder.writeTimeout(writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
-        httpClientBuilder.readTimeout(readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
+                .connectTimeout(connectTimeout, TimeUnit.SECONDS)   // connection timeout
+                .writeTimeout(writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
+                .readTimeout(readTimeout, TimeUnit.SECONDS)    // read timeout per chunk
 
         if (debug) {
             httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler())
@@ -54,9 +54,9 @@ class GraphApiClient {
         if (!cache.get(graphConfig.configName) || reset) {
             AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(new AdhocTokenCredential(graphConfig: graphConfig), new String[]{}, graphConfig.scopes.split(" "))
             OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
-            httpClientBuilder.connectTimeout(this.connectTimeout, TimeUnit.SECONDS)   // connection timeout
-            httpClientBuilder.writeTimeout(this.writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
-            httpClientBuilder.readTimeout(this.readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
+                    .connectTimeout(this.connectTimeout, TimeUnit.SECONDS)   // connection timeout
+                    .writeTimeout(this.writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
+                    .readTimeout(this.readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
 
             if (graphConfig.debug) {
                 httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(graphConfig.configName))
