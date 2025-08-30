@@ -8,13 +8,19 @@ class ReaderTokenController implements GrailsConfigurationAware {
     def readerTokenStoreService
 
     private String redirectUri
+    private boolean enabled
 
     @Override
     void setConfiguration(Config config) {
         this.redirectUri = config.getProperty('grails.mail.reader.graph.redirect_uri', String, '/emailConfig')
+        this.enabled = config.getProperty('grails.mail.reader.enabled', Boolean) && config.getProperty('grails.mail.reader.graph.enabled', Boolean)
     }
 
     def callback(String code, String state) {
+        if (!enabled) {
+            render status: 404, text: "Reader with Graph is not enabled for this environment"
+            return
+        }
         //Todo in actual implementation we would need to attach state with graphconfig so that callback can be received
         log.info("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [RECEIVED] - CODE_PRESENT=${code != null}, STATE_PRESENT=${state != null}")
 

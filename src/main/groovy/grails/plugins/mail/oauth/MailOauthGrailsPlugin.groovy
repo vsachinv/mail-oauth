@@ -88,17 +88,22 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 
             if (mailConfig.reader.enabled) {
                 readerTokenStoreService(InMemoryReaderTokenStoreService)
-                println "Enabled mail-reader graph configuration"
-                if (!mailConfig.oAuth.enabled || !mailConfig.oAuth.graph.enabled) {
-                    graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
+                if (mailConfig.reader.graph.enabled) {
+                    println "Enabled mail-reader graph configuration"
+                    if (!mailConfig.oAuth.enabled || !mailConfig.oAuth.graph.enabled) {
+                        graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
+                    }
+                    graphEmailReaderService(GraphEmailReaderService) {
+                        graphApiClient = ref('graphApiClient')
+                        readerTokenStoreService = ref('readerTokenStoreService')
+                    }
                 }
-                graphEmailReaderService(GraphEmailReaderService) {
-                    graphApiClient = ref('graphApiClient')
-                    readerTokenStoreService = ref('readerTokenStoreService')
-                }
-                println "Enabled mail-reader imap configuration"
-                imapEmailReaderService(ImapEmailReaderService) {
-                    readerTokenStoreService = ref('readerTokenStoreService')
+
+                if (mailConfig.reader.imap.enabled) {
+                    println "Enabled mail-reader imap configuration"
+                    imapEmailReaderService(ImapEmailReaderService) {
+                        readerTokenStoreService = ref('readerTokenStoreService')
+                    }
                 }
             }
 

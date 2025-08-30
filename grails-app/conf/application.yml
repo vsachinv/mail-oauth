@@ -148,8 +148,11 @@ grails:
         reader:
             enabled: false
             graph:
+                enabled: false
                 callbackUrl: http://localhost:8082/readerToken/callback
                 redirect_uri: /emailConfig
+            imap:
+                enabled: false
             health:
                 check:
                     disabled: false
