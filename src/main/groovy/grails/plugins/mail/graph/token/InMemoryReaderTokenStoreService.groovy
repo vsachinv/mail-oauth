@@ -68,7 +68,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     }
 
     @Override
-    OAuthToken generateAccessTokenFor(GraphConfig graphConfig, String code, String state) {
+    OAuthToken generateAccessTokenFor(GraphConfig graphConfig, String code, String state, Boolean forced = false) {
         if (!graphConfig)
             graphConfig = configStore.get(state)
         log.debug("Retrieved config from state via ${state} for ${graphConfig?.configName}")

@@ -15,10 +15,12 @@ class MailOAuthController implements GrailsConfigurationAware {
     def mailOAuthService
 
     private String redirectUri
+    private boolean daemon
 
     @Override
     void setConfiguration(Config config) {
         this.redirectUri = config.getProperty('grails.mail.oAuth.redirect.uri', String, '/mailOAuth/index')
+        this.daemon = config.getProperty('grails.mail.oAuth.daemon', Boolean, false)
     }
 
     def index() {
@@ -50,8 +52,8 @@ class MailOAuthController implements GrailsConfigurationAware {
         redirect(uri: redirectUri)
     }
 
-    def callback(String code, String state) {
-        if (!code) {
+    def callback(String code, String state, Boolean forced) {
+        if (!daemon && !code && !forced) {
             log.warn("[GRAPH_EMAIL] [CALLBACK] - Missing code | Error=${params.error} | Description=${params.error_description}")
             flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
             redirect(uri: redirectUri)
@@ -59,7 +61,7 @@ class MailOAuthController implements GrailsConfigurationAware {
         }
         log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state}")
         try {
-            mailOAuthService.generateAccessToken(code, state)
+            mailOAuthService.generateAccessToken(code, state, forced)
             flash.message = "Successfully generated access token"
         } catch (Exception ex) {
             log.error("[GRAPH_EMAIL] [CALLBACK] [FAILED] - Received OAuth callback | Code=${code} | State=${state} ", ex)

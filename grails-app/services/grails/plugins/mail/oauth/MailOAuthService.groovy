@@ -37,8 +37,8 @@ class MailOAuthService implements GrailsConfigurationAware {
         return oAuth20Service.getAuthorizationUrl(state)
     }
 
-    synchronized OAuthToken generateAccessToken(String code, String state) {
-        if (clientId != this.stateStoreService.getIdForState(state)) {
+    synchronized OAuthToken generateAccessToken(String code, String state, Boolean forced = false) {
+        if (!forced && clientId != this.stateStoreService.getIdForState(state)) {
             throw new Exception('State mismatch. State sent is different from what received')
         }
         OAuth2AccessToken token
