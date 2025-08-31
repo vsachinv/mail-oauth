@@ -15,6 +15,8 @@ interface ReaderTokenStoreService {
 
     OAuthToken generateAccessTokenFor(GraphConfig graphConfig, String code, String state)
 
+    OAuthToken generateAccessTokenFor(GraphConfig graphConfig, String code, String state, Boolean forced)
+
     void revokeTokenFor(GraphConfig graphConfig)
 
 }
