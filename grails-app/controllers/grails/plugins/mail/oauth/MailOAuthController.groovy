@@ -59,7 +59,7 @@ class MailOAuthController implements GrailsConfigurationAware {
             redirect(uri: redirectUri)
             return
         }
-        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state}")
+        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
         try {
             mailOAuthService.generateAccessToken(code, state, forced)
             flash.message = "Successfully generated access token"

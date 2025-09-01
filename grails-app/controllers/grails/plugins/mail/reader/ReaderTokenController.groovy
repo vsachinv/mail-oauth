@@ -22,7 +22,7 @@ class ReaderTokenController implements GrailsConfigurationAware {
             return
         }
         //Todo in actual implementation we would need to attach state with graphconfig so that callback can be received
-        log.info("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [RECEIVED] - CODE_PRESENT=${code != null}, STATE_PRESENT=${state != null}")
+        log.info("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [RECEIVED] - CODE_PRESENT=${code != null}, STATE_PRESENT=${state != null} | forced = ${forced}")
 
         if ((!forced && !code) || !state) {
             log.warn("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [INVALID_REQUEST] - Missing 'code' or 'state' | code=${code} | state=${state}")
