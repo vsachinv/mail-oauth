@@ -249,9 +249,6 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
 
     @Override
     void from(CharSequence fromMail) {
-        if (defaultFrom) {
-            fromMail = defaultFrom
-        }
         if (!fromMail) {
             return
         }

@@ -76,10 +76,12 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
         message.attachments = []
         UserItemRequestBuilder userItemRequestBuilder = graphServiceClient.me()
         // DefaultFrom is mandatory in case of daemon. and if username is different then it means using shared account (Use default from config for shared).
-        if (daemon || username != message.from.emailAddress.address) {
-            log.debug("[GRAPH_EMAIL] [SEND_EMAIL] [PROCESS_ATTACHMENT_MSG] - Sending email as ${message.from.emailAddress.address}")
+        String fromAddress = message.from?.emailAddress?.address ?: username
+        boolean sendAsAnotherUser = daemon || (username != fromAddress && fromAddress)
+        if (sendAsAnotherUser) {
+            log.debug "[GRAPH_EMAIL] [SEND_EMAIL] [PROCESS_ATTACHMENT_MSG] - Sending email as ${fromAddress}"
             // If sending as another user (daemon apps)
-            userItemRequestBuilder = graphServiceClient.users().byUserId(message.from.emailAddress.address)
+            userItemRequestBuilder = graphServiceClient.users().byUserId(fromAddress)
         }
         // Step 1: create a draft message
         Message draftMessage = userItemRequestBuilder.messages().post(message)

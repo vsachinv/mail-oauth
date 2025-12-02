@@ -9,7 +9,7 @@ import groovy.transform.ToString
 class OAuthToken implements Serializable {
 
     String accessToken
-    String refreshToken
+    String refreshToken // Will be null in case of daemon app token
     Integer expiresIn
     Date expireAt
 
