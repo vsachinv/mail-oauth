@@ -16,15 +16,18 @@ class ReaderTokenController implements GrailsConfigurationAware {
         this.enabled = config.getProperty('grails.mail.reader.enabled', Boolean) && config.getProperty('grails.mail.reader.graph.enabled', Boolean)
     }
 
-    def callback(String code, String state, Boolean forced) {
+    def callback(String code, String state, Boolean admin_consent, Boolean forced) {
         if (!enabled) {
             render status: 404, text: "Reader with Graph is not enabled for this environment"
             return
         }
         //Todo in actual implementation we would need to attach state with graphconfig so that callback can be received
         log.info("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [RECEIVED] - CODE_PRESENT=${code != null}, STATE_PRESENT=${state != null} | forced = ${forced}")
-
-        if ((!forced && !code) || !state) {
+        //Added to handle Case sensitive True/False properly
+        if (admin_consent == null && params.admin_consent) {
+            admin_consent = params.admin_consent.toBoolean()
+        }
+        if ((!forced && !code && !admin_consent) || !state) {
             log.warn("[GRAPH_EMAIL] [READER_OAUTH_CALLBACK] [INVALID_REQUEST] - Missing 'code' or 'state' | code=${code} | state=${state}")
             render status: 400, text: "Invalid request: Missing 'code' or 'state'."
             return
