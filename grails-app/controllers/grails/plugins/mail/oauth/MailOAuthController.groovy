@@ -52,14 +52,14 @@ class MailOAuthController implements GrailsConfigurationAware {
         redirect(uri: redirectUri)
     }
 
-    def callback(String code, String state, Boolean forced) {
-        if (!daemon && !code && !forced) {
-            log.warn("[GRAPH_EMAIL] [CALLBACK] - Missing code | Error=${params.error} | Description=${params.error_description}")
+    def callback(String code, String state, Boolean admin_consent, Boolean forced) {
+        if (!(daemon && (code || admin_consent)) && !code && !forced) {
+            log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
             flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
             redirect(uri: redirectUri)
             return
         }
-        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
+        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced} | admin_consent=${admin_consent}")
         try {
             mailOAuthService.generateAccessToken(code, state, forced)
             flash.message = "Successfully generated access token"

@@ -62,7 +62,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         configStore.put(state, graphConfig)
         log.debug("Generated Auth URL for ${graphConfig.configName} with state ${state} ")
         if (graphConfig.daemon) {
-            return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.tenantId, graphConfig.clientId)
+            return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.tenantId, graphConfig.clientId, graphConfig.callbackUrl)
         }
         return getAuthService(graphConfig).getAuthorizationUrl(state)
     }
