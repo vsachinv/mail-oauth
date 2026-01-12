@@ -31,11 +31,12 @@ class MailOAuthUtil {
         }
     }
 
-    public static String buildAdminConsentUrl(String state, String tenantId, String clientId) {
-        return String.format("https://login.microsoftonline.com/%s/adminconsent" + "?client_id=%s" + "&state=%s",
+    public static String buildAdminConsentUrl(String state, String tenantId, String clientId, String redirectURL) {
+        return String.format("https://login.microsoftonline.com/%s/adminconsent" + "?client_id=%s" + "&state=%s" + "&redirect_uri=%s",
                 tenantId,
                 urlEncode(clientId),
-                urlEncode(state))
+                urlEncode(state),
+                urlEncode(redirectURL))
     }
 
     private static String urlEncode(String value) {

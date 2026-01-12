@@ -57,8 +57,8 @@ class MailOAuthController implements GrailsConfigurationAware {
         if (admin_consent == null && params.admin_consent) {
             admin_consent = params.admin_consent.toBoolean()
         }
-        if (!daemon && !code && !forced && !admin_consent) {
-            log.warn("[GRAPH_EMAIL] [CALLBACK] - Missing code | Error=${params.error} | Description=${params.error_description}")
+        if (!(daemon && (code || admin_consent)) && !code && !forced) {
+            log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
             flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
             redirect(uri: redirectUri)
             return

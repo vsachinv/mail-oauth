@@ -32,7 +32,7 @@ class MailOAuthService implements GrailsConfigurationAware {
         stateStoreService.storeState(clientId, state)
         if (this.daemon) {
             log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
-            return MailOAuthUtil.buildAdminConsentUrl(state, tenantId, clientId)
+            return MailOAuthUtil.buildAdminConsentUrl(state, tenantId, clientId, callbackUrl)
         }
         return oAuth20Service.getAuthorizationUrl(state)
     }
