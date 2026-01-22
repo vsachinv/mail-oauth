@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService
 @CompileStatic
 class GraphMailMessageBuilder extends MailMessageBuilder {
 
+    public Long tenantId
     public List<Recipient> bccRecipients = []
     public ItemBody body = null
     public String bodyPreview
@@ -331,6 +332,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         }
         message
     }
+
 
     @Override
     GraphMessage finishMessage() {

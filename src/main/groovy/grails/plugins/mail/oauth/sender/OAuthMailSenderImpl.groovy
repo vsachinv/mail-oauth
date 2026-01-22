@@ -2,8 +2,10 @@ package grails.plugins.mail.oauth.sender
 
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.oauth.MailOAuthService
+import grails.plugins.mail.oauth.token.OAuthToken
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import org.springframework.mail.MailMessage
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import javax.mail.Session
 
@@ -12,12 +14,13 @@ import javax.mail.Session
 class OAuthMailSenderImpl extends JavaMailSenderImpl {
 
     MailOAuthService mailOAuthService
-
+    Long tenantId
     OAuthMailSenderImpl() {
     }
 
-    OAuthMailSenderImpl(Session mailSession,
-                        MailConfigurationProperties mailProperties) {
+    OAuthMailSenderImpl(MailConfigurationProperties mailProperties,MailOAuthService mailOAuthService,Long tenantId) {
+        this.mailOAuthService = mailOAuthService
+        this.tenantId = tenantId
         if (mailProperties.host) {
             this.host = mailProperties.host
         } else if (!mailProperties.jndiName) {
@@ -52,14 +55,12 @@ class OAuthMailSenderImpl extends JavaMailSenderImpl {
         }
         this.javaMailProperties.setProperty('mail.smtp.auth', 'true')
         this.javaMailProperties.setProperty('mail.smtp.auth.mechanisms', 'XOAUTH2')
-        if (mailSession != null) {
-            this.session = mailSession
-        }
+        this.session =  Session.getInstance(javaMailProperties)
     }
 
     @Override
     String getPassword() {
-        mailOAuthService.getAccessToken()?.accessToken
+        mailOAuthService.getAccessToken(this.tenantId)?.accessToken
     }
 
 }

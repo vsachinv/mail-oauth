@@ -15,10 +15,17 @@ import java.time.ZoneOffset
 @CompileStatic
 class TokenBasedAuthCredential implements TokenCredential {
     MailOAuthService mailOAuthService
+    Long tenantId
+
+    TokenBasedAuthCredential(Long tenantId, MailOAuthService mailOAuthService) {
+        this.tenantId = tenantId
+        this.mailOAuthService = mailOAuthService
+    }
+
 
     @Override
     Mono<AccessToken> getToken(TokenRequestContext request) {
-        OAuthToken oAuthToken = mailOAuthService.accessToken
+        OAuthToken oAuthToken = mailOAuthService.getAccessToken(tenantId)
         return Mono.just(new AccessToken(oAuthToken.accessToken, oAuthToken.expireAt.toInstant().atOffset(ZoneOffset.UTC)))
     }
 }

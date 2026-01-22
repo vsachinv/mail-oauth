@@ -2,6 +2,7 @@ package grails.plugins.mail.oauth
 
 import com.azure.core.credential.BasicAuthenticationCredential
 import grails.plugins.*
+import grails.plugins.mail.MailMessageBuilderFactory
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.reader.GraphEmailReaderService
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
@@ -12,7 +13,7 @@ import grails.plugins.mail.imap.reader.ImapEmailReaderService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 
 import grails.plugins.mail.oauth.token.MemoryTokenStore
-import grails.plugins.mail.graph.token.TokenBasedAuthCredential
+import grails.plugins.mail.tenant.TenantMailExecutorRegistry
 
 @SuppressWarnings('unused')
 class MailOauthGrailsPlugin extends Plugin {
@@ -67,24 +68,24 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             mailConfigHash = mailConfig.hashCode()
             stateStoreService(SessionStateStoreService)
             tokenStore(MemoryTokenStore)
-
-            if (mailConfig.oAuth.enabled) {
-                if (mailConfig.oAuth.graph.enabled) {
-                    println "Enabled mail send graph configuration"
-                    tokenBasedAuthCredential(TokenBasedAuthCredential) {
-                        mailOAuthService = ref('mailOAuthService')
-                    }
-
-                    graphApiClient(GraphApiClient, ref('tokenBasedAuthCredential'), mailConfig.oAuth.api_scope, mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
-
-                    mailMessageBuilderFactory(GraphMailMessageBuilderFactory) {
-                        it.autowire = true
-                    }
-                } else {
-                    println "Enabled mail send via smtp using OAuth configuration"
-                }
-                configureMailOAuthSender(delegate, mailConfig)
+            graphMailMessageBuilderFactory(GraphMailMessageBuilderFactory)
+            mailMessageBuilderFactory(MailMessageBuilderFactory)
+            tenantMailConfigResolverService(TenantMailConfigResolverService){
+                grailsApplication = ref('grailsApplication')
             }
+            tenantMailExecutorRegistry(TenantMailExecutorRegistry)
+            tenantMailService(TenantMailService) {
+                tenantMailConfigResolverService = ref('tenantMailConfigResolverService')
+                mailMessageBuilderFactory = ref('mailMessageBuilderFactory')
+                graphMailMessageBuilderFactory = ref('graphMailMessageBuilderFactory')
+                mailOAuthService = ref('mailOAuthService')
+                tenantMailExecutorRegistry = ref('tenantMailExecutorRegistry')
+            }
+
+
+
+
+
 
             if (mailConfig.reader.enabled) {
                 readerTokenStoreService(InMemoryReaderTokenStoreService)

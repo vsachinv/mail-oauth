@@ -5,10 +5,10 @@ import groovy.transform.CompileStatic
 @CompileStatic
 interface TokenStore {
 
-    void saveToken(OAuthToken token);
+    void saveToken(Long tenantId,OAuthToken token);
 
-    OAuthToken getToken();
+    OAuthToken getToken(Long tenantId);
 
-    void revokeToken();
+    void revokeToken(Long tenantId);
 
 }

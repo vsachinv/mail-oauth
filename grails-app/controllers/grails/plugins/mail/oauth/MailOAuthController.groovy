@@ -1,7 +1,6 @@
 package grails.plugins.mail.oauth
 
-import grails.config.Config
-import grails.core.support.GrailsConfigurationAware
+
 import groovy.util.logging.Slf4j
 import org.springframework.mail.MailAuthenticationException
 
@@ -10,58 +9,41 @@ import javax.mail.internet.InternetAddress
 import com.github.scribejava.core.model.OAuth2AccessTokenErrorResponse
 
 @Slf4j
-class MailOAuthController implements GrailsConfigurationAware {
+class MailOAuthController {
 
-    def mailOAuthService
+    MailOAuthService mailOAuthService
 
-    private String redirectUri
-    private boolean daemon
-
-    @Override
-    void setConfiguration(Config config) {
-        this.redirectUri = config.getProperty('grails.mail.oAuth.redirect.uri', String, '/mailOAuth/index')
-        this.daemon = config.getProperty('grails.mail.oAuth.daemon', Boolean, false)
-    }
 
     def index() {
         log.debug("[GRAPH_EMAIL] [INDEX] - Accessed index endpoint")
     }
 
-    def generate() {
-        if (!grailsApplication.config.grails.mail.oAuth.enabled) {
-            log.warn("[GRAPH_EMAIL] [GENERATE] - OAuth configuration is disabled")
-            flash.warn = "Please enable mail OAuth configuration"
-            redirect(uri: redirectUri)
-            return
-        }
+    def generate(Long tenantId) {
         log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
-        redirect(url: mailOAuthService.generateAuthCodeURL())
+        redirect(url: mailOAuthService.generateAuthCodeURL(tenantId))
     }
 
-    def refresh() {
-        log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken")
-        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken())
+    def refresh(Long tenantId) {
+        log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}",tenantId)
+        def cfg = mailOAuthService.getTenantConfig(tenantId)
+        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken(tenantId))
         flash.message = "Refreshed Token"
-        redirect(uri: redirectUri)
+        redirect(uri: cfg.oAuth.redirect.uri)
     }
 
-    def revoke() {
-        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
-        mailOAuthService.revokeToken()
+    def revoke(Long tenantId) {
+        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken for tenantId {}",tenantId)
         flash.message = "Token Revoked"
-        redirect(uri: redirectUri)
+        redirect(uri: mailOAuthService.revokeToken(tenantId))
     }
 
-    def callback(String code, String state, Boolean forced) {
-        if (!daemon && !code && !forced) {
-            log.warn("[GRAPH_EMAIL] [CALLBACK] - Missing code | Error=${params.error} | Description=${params.error_description}")
-            flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
-            redirect(uri: redirectUri)
-            return
-        }
+    def callback(Long tenantId,String code, String state, Boolean forced) {
         log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
-        try {
-            mailOAuthService.generateAccessToken(code, state, forced)
+        String redirectUri
+        try{
+            //TODO find how tenantId we can find
+            //Long tenantId = 1L
+            redirectUri = mailOAuthService.generateAccessToken(tenantId, code, state, forced)
             flash.message = "Successfully generated access token"
         } catch (Exception ex) {
             log.error("[GRAPH_EMAIL] [CALLBACK] [FAILED] - Received OAuth callback | Code=${code} | State=${state} ", ex)
@@ -70,30 +52,32 @@ class MailOAuthController implements GrailsConfigurationAware {
         redirect(uri: redirectUri)
     }
 
-    def tokenStatus() {
-        def token = mailOAuthService.tokenStore.getToken()
+    def tokenStatus(Long tenantId) {
+        def cfg = mailOAuthService.getTenantConfig(tenantId)
+        def token = mailOAuthService.tokenStore.getToken(tenantId)
         if (!token) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")
             flash.error = "Access token is not available."
-            redirect(uri: redirectUri)
+            redirect(uri: cfg.oAuth.redirect.uri)
             return
         }
         if (token.expireAt < new Date()) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - Token expired at ${token.expireAt}")
             flash.warn = "Access token is invalid. Please generate using refresh token"
-            redirect(uri: redirectUri)
+            redirect(uri: cfg.oAuth.redirect.uri)
             return
         }
         log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
         flash.message = "Access token is valid till ${token.expireAt} UTC."
-        redirect(uri: redirectUri)
+        redirect(uri: cfg.oAuth.redirect.uri)
     }
 
-    def sendTestMail(String email) {
-        log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email}")
+    def sendTestMail(Long tenantId,String email) {
+        log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email} and tenantId ${tenantId}")
+        def cfg =  mailOAuthService.getTenantConfig(tenantId)
         try {
             new InternetAddress(email).validate()
-            sendMail {
+            sendMail() {
                 multipart false
                 to email
                 subject 'test email'
@@ -113,7 +97,7 @@ class MailOAuthController implements GrailsConfigurationAware {
             log.error("[GRAPH_EMAIL] [SEND_TEST_MAIL] - General error while sending test mail", ex)
             flash.error = "Test mail failed. Please contact your Administrator."
         }
-        redirect(uri: redirectUri)
+        redirect(uri: cfg.oAuth.redirect.uri)
     }
 
 }

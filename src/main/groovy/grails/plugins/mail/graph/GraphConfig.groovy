@@ -8,7 +8,7 @@ class GraphConfig implements Serializable {
     private static final long serialVersionUID = 1962358793540268673L
 
     String configName //Should be unique and mandatory
-    String tenantId
+    String graphTenantId
     String clientId
     String secretId
     String scopes
@@ -18,4 +18,5 @@ class GraphConfig implements Serializable {
     boolean isShared = false
     boolean daemon = false
     boolean debug = false
+    Long tenantId
 }
