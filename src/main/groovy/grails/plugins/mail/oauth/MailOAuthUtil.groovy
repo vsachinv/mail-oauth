@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets
 class MailOAuthUtil {
 
     private static final String GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me"
+    static final String TENANT_PREFIX = "tenant_"
+    static final Integer MAX_ATTACHMENT_SIZE_IN_MB = 3
 
     // TODO need to find solution to handle using API rather hard coded string GRAPH_ME_URL.
     @CompileDynamic
@@ -41,4 +43,28 @@ class MailOAuthUtil {
     private static String urlEncode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
+
+    static String buildOAuthState(Long tenantId, String state) {
+        String raw = "tenantId=${tenantId}|state=\"${state}\""
+        return URLEncoder.encode(raw, StandardCharsets.UTF_8)
+    }
+
+    static Map<String, String> parseState(String stateParam) {
+        if (!stateParam) {
+            return [:]
+        }
+        // If URL-encoded, decode first
+        String decoded = URLDecoder.decode(stateParam, StandardCharsets.UTF_8)
+        Map<String, String> result = [:]
+        decoded.split("\\|").each { part ->
+            String[] kv = part.split("=", 2)
+            if (kv.length == 2) {
+                String key = kv[0]
+                String value = kv[1].replaceAll('^"|"$', '')
+                result.put(key, value);
+            }
+        }
+        return result
+    }
+
 }

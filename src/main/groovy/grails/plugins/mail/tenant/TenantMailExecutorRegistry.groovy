@@ -9,6 +9,7 @@ class TenantMailExecutorRegistry {
 
     private final ConcurrentMap<Long, ExecutorService> executors =
             new ConcurrentHashMap<>()
+    private static final Integer DEFAULT_POOL_SIZE = 5
 
     ExecutorService executorFor(Long tenantId, Integer poolSize) {
 
@@ -16,8 +17,8 @@ class TenantMailExecutorRegistry {
             log.info("[MAIL] Creating executor for tenant={}", tenantId)
 
             ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                    poolSize ?: 5,
-                    poolSize ?: 5,
+                    poolSize ?: DEFAULT_POOL_SIZE,
+                    poolSize ?: DEFAULT_POOL_SIZE,
                     60,
                     TimeUnit.SECONDS,
                     new LinkedBlockingQueue<>(),

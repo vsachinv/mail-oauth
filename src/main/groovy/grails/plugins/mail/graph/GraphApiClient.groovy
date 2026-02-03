@@ -26,7 +26,7 @@ class GraphApiClient {
     private Long readTimeout // In seconds
 
     //To Avoid multiple graphClient Connections for same config as it does exhaust socket ports.
-    private Map<Long,Map<String, GraphServiceClient>> cache = new ConcurrentHashMap<>()
+    private Map<String, GraphServiceClient> cache = new ConcurrentHashMap<String, GraphServiceClient>([:])
 
     GraphApiClient(TokenCredential tokenBasedAuthCredential, String scopes, Boolean debug, Long connectTimeout, Long writeTimeout, Long readTimeout) {
         this.tokenBasedAuthCredential = tokenBasedAuthCredential
@@ -51,49 +51,22 @@ class GraphApiClient {
     }
 
     GraphServiceClient getClientFor(GraphConfig graphConfig, boolean reset = false) {
-        Long tenantId = graphConfig.tenantId
-        String configName = graphConfig.configName
-
-        // Get or create tenant-level cache
-        Map<String, GraphServiceClient> tenantCache =
-                cache.computeIfAbsent(tenantId) {
-                    new ConcurrentHashMap<String, GraphServiceClient>()
-                }
-
-        // Reset logic
-        if (reset) {
-            tenantCache.remove(configName)
-        }
-
-        // Get or create Graph client
-        return tenantCache.computeIfAbsent(configName) {
-            AuthenticationProvider authenticationProvider =
-                    new AzureIdentityAuthenticationProvider(
-                            new AdhocTokenCredential(graphConfig: graphConfig),
-                            new String[]{},
-                            graphConfig.scopes.split(" ")
-                    )
-
-            OkHttpClient.Builder httpClientBuilder =
-                    GraphClientFactory.create(GraphServiceClient.graphClientOptions)
-                            .connectTimeout(this.connectTimeout, TimeUnit.SECONDS)
-                            .writeTimeout(this.writeTimeout, TimeUnit.SECONDS)
-                            .readTimeout(this.readTimeout, TimeUnit.SECONDS)
+        String key = "${graphConfig.tenantId}-${graphConfig.configName}"
+        if (!cache.get(key) || reset) {
+            AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(new AdhocTokenCredential(graphConfig: graphConfig), new String[]{}, graphConfig.scopes.split(" "))
+            OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
+                    .connectTimeout(this.connectTimeout, TimeUnit.SECONDS)   // connection timeout
+                    .writeTimeout(this.writeTimeout, TimeUnit.SECONDS)    // write timeout per chunk
+                    .readTimeout(this.readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
 
             if (graphConfig.debug) {
-                httpClientBuilder =
-                        httpClientBuilder.addInterceptor(
-                                new GraphDebugHandler(configName)
-                        )
+                httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(key))
             }
-
-            new GraphServiceClient(
-                    authenticationProvider,
-                    httpClientBuilder.build()
-            )
+            GraphServiceClient graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
+            cache.put(key, graphServiceClient)
         }
+        return cache.get(key)
     }
-
 
     public clearCache() {
         cache.clear()

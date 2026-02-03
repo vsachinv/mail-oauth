@@ -19,7 +19,7 @@ class MailOAuthController {
     }
 
     def generate(Long tenantId) {
-        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL for tenantId {}",tenantId)
         redirect(url: mailOAuthService.generateAuthCodeURL(tenantId))
     }
 
@@ -37,13 +37,11 @@ class MailOAuthController {
         redirect(uri: mailOAuthService.revokeToken(tenantId))
     }
 
-    def callback(Long tenantId,String code, String state, Boolean forced) {
-        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
+    def callback(String code, String state, Boolean forced) {
+        log.info("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
         String redirectUri
         try{
-            //TODO find how tenantId we can find
-            //Long tenantId = 1L
-            redirectUri = mailOAuthService.generateAccessToken(tenantId, code, state, forced)
+            redirectUri = mailOAuthService.generateAccessToken(code, state, forced)
             flash.message = "Successfully generated access token"
         } catch (Exception ex) {
             log.error("[GRAPH_EMAIL] [CALLBACK] [FAILED] - Received OAuth callback | Code=${code} | State=${state} ", ex)

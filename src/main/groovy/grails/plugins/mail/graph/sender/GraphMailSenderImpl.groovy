@@ -13,10 +13,8 @@ import com.microsoft.kiota.serialization.ParsableFactory
 import com.microsoft.kiota.serialization.ParseNode
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.graph.GraphApiClient
-import grails.plugins.mail.graph.token.TokenBasedAuthCredential
 import grails.plugins.mail.oauth.MailOAuthService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
-import grails.util.Holders
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -26,8 +24,7 @@ import org.springframework.mail.MailException
 import org.springframework.mail.MailSendException
 import javax.mail.AuthenticationFailedException
 import javax.mail.internet.MimeMessage
-import java.time.Clock
-import java.time.OffsetDateTime
+
 
 @Slf4j
 @CompileStatic
@@ -144,13 +141,13 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
     }
 
     @CompileDynamic
-    public void testConnection(Long tenantId) throws ApiException {
+    void testConnection(Long tenantId) throws ApiException {
         /*if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
             log.warn("[GRAPH_EMAIL] [HEALTH_CHECK] Disabled via config.")
             return
         }*/
         log.debug("[GRAPH_EMAIL] [HEALTH_CHECK] Testing connection with current access token.")
-        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken(tenantId))
+        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         log.info("[GRAPH_EMAIL] [HEALTH_CHECK] Token refresh successful.")
     }
 

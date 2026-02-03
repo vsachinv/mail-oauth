@@ -10,8 +10,9 @@ import grails.plugins.mail.graph.sender.GraphMailSenderImpl
 import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.graph.token.InMemoryReaderTokenStoreService
 import grails.plugins.mail.imap.reader.ImapEmailReaderService
-import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 
+import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
+import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.mail.oauth.token.MemoryTokenStore
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
 
@@ -69,6 +70,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             stateStoreService(SessionStateStoreService)
             tokenStore(MemoryTokenStore)
             graphMailMessageBuilderFactory(GraphMailMessageBuilderFactory)
+            oauthMailMessageBuilderFactory(OauthMailMessageBuilderFactory)
             mailMessageBuilderFactory(MailMessageBuilderFactory)
             tenantMailConfigResolverService(TenantMailConfigResolverService){
                 grailsApplication = ref('grailsApplication')
@@ -78,6 +80,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 tenantMailConfigResolverService = ref('tenantMailConfigResolverService')
                 mailMessageBuilderFactory = ref('mailMessageBuilderFactory')
                 graphMailMessageBuilderFactory = ref('graphMailMessageBuilderFactory')
+                oauthMailMessageBuilderFactory = ref('oauthMailMessageBuilderFactory')
                 mailOAuthService = ref('mailOAuthService')
                 tenantMailExecutorRegistry = ref('tenantMailExecutorRegistry')
             }

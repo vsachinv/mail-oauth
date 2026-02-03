@@ -1,21 +1,17 @@
-package grails.plugins.mail.graph.sender
+package grails.plugins.mail.oauth.sender
 
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageBuilderFactory
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
-import org.grails.web.mime.DefaultMimeUtility
 import org.springframework.mail.MailSender
 
 @Slf4j
 @CompileStatic
-class GraphMailMessageBuilderFactory extends MailMessageBuilderFactory {
-
-    DefaultMimeUtility grailsMimeUtility
-
+class OauthMailMessageBuilderFactory extends  MailMessageBuilderFactory {
     MailMessageBuilder createBuilder(MailConfigurationProperties properties, MailSender mailSender) {
-        new GraphMailMessageBuilder(mailSender, properties, mailMessageContentRenderer, grailsMimeUtility)
+        new MailMessageBuilder(mailSender, properties, mailMessageContentRenderer)
     }
 
 }

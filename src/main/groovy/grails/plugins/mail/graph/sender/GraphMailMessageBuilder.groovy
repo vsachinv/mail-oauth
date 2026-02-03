@@ -15,7 +15,6 @@ import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphMessage
 import grails.web.mime.MimeType
-import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.apache.commons.io.FilenameUtils
