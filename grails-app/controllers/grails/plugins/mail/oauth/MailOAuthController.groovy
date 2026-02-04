@@ -25,8 +25,12 @@ class MailOAuthController {
 
     def refresh(Long tenantId) {
         log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}",tenantId)
-        def cfg = mailOAuthService.getTenantConfig(tenantId)
-        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken(tenantId))
+        ConfigObject cfg = mailOAuthService.getTenantConfig(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            redirect(uri: MailOAuthUtil.REDIRECT_URI)
+        }
+        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         flash.message = "Refreshed Token"
         redirect(uri: cfg.oAuth.redirect.uri)
     }
@@ -37,11 +41,11 @@ class MailOAuthController {
         redirect(uri: mailOAuthService.revokeToken(tenantId))
     }
 
-    def callback(String code, String state, Boolean forced) {
-        log.info("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced}")
+    def callback(String code, String state,Boolean admin_consent, Boolean forced) {
+        log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced} | admin_consent=${admin_consent}")
         String redirectUri
         try{
-            redirectUri = mailOAuthService.generateAccessToken(code, state, forced)
+            redirectUri = mailOAuthService.generateAccessToken(code, state,params,admin_consent,forced)
             flash.message = "Successfully generated access token"
         } catch (Exception ex) {
             log.error("[GRAPH_EMAIL] [CALLBACK] [FAILED] - Received OAuth callback | Code=${code} | State=${state} ", ex)

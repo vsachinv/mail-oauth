@@ -21,6 +21,10 @@ class MailOAuthService  {
 
     String generateAuthCodeURL(Long tenantId) {
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.REDIRECT_URI
+        }
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!ctx.enable) {
             log.warn("[GRAPH_EMAIL] [GENERATE] - OAuth configuration is disabled")
@@ -39,18 +43,21 @@ class MailOAuthService  {
         return ctx.oauthService.getAuthorizationUrl(stateTenantId)
     }
 
-    synchronized String generateAccessToken(String code, String stateTenantId, Boolean forced = false)  throws Exception{
+    synchronized String generateAccessToken(String code, String stateTenantId,Map params, Boolean admin_consent, Boolean forced = false)  throws Exception{
         Map stateMap = MailOAuthUtil.parseState(stateTenantId)
         Long tenantId = stateMap.tenantId as Long
         String state = stateTenantId
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.REDIRECT_URI
+        }
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
-        if (!ctx.daemon && !code && !forced) {
-            log.warn("[GRAPH_EMAIL] [CALLBACK] - Missing code | Error=${params.error} | Description=${params.error_description}")
+        if (!(ctx.daemon && (code || admin_consent)) && !code && !forced) {
+            log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${ctx.daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
             flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
             return ctx.redirectUri
         }
-
         if (!forced && ctx.clientId != this.stateStoreService.getIdForState(state)) {
             throw new Exception('State mismatch. State sent is different from what received')
         }
@@ -79,7 +86,6 @@ class MailOAuthService  {
         log.debug('Refreshing token')
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
-
         OAuthToken oauthToken = ctx.daemon ?
                 ctx.oauthService.getAccessTokenClientCredentialsGrant() :
                 ctx.oauthService.refreshAccessToken(oldToken.refreshToken)
@@ -90,8 +96,12 @@ class MailOAuthService  {
     }
 
     String revokeToken(Long tenantId) {
-        OAuthToken oAuthToken = tokenStore.getToken(tenantId)
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.REDIRECT_URI
+        }
+        OAuthToken oAuthToken = tokenStore.getToken(tenantId)
         TenantOAuthContext ctx = buildContext(tenantId,cfg)
         if (!oAuthToken) {
             log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found, nothing to revoke")
@@ -145,9 +155,5 @@ class MailOAuthService  {
     ConfigObject getTenantConfig(Long tenantId){
        return tenantMailConfigResolverService.resolve(tenantId)
     }
-
-
-
-
 
 }
