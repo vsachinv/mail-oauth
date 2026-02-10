@@ -40,7 +40,11 @@ class MailOAuthService  {
             return MailOAuthUtil.buildAdminConsentUrl(stateTenantId, cfg.oAuth.tenant_id, ctx.clientId,  cfg.oAuth.callback_url)
         }
         log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
-        return ctx.oauthService.getAuthorizationUrl(stateTenantId)
+        Map<String, String> additionalParams = [
+                state: stateTenantId,
+                prompt: "login"
+        ]
+        return ctx.oauthService.getAuthorizationUrl(additionalParams)
     }
 
     synchronized String generateAccessToken(String code, String stateTenantId,Map params, Boolean admin_consent, Boolean forced = false)  throws Exception{
@@ -86,7 +90,7 @@ class MailOAuthService  {
         log.debug('Refreshing token')
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
-        OAuthToken oauthToken = ctx.daemon ?
+        OAuth2AccessToken oauthToken = ctx.daemon ?
                 ctx.oauthService.getAccessTokenClientCredentialsGrant() :
                 ctx.oauthService.refreshAccessToken(oldToken.refreshToken)
 

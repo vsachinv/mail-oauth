@@ -38,9 +38,9 @@ class TenantMailService {
 
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         if (!cfg) {
-            log.error("Mail configuration not found for tenant: ${tenantId}")
+            log.error("Mail configuration is not found for tenant: ${tenantId}")
             throw new IllegalStateException(
-                    "Mail configuration not found for tenant: ${tenantId}"
+                    "Mail configuration is not found for tenant: ${tenantId}"
             )
         }
 
