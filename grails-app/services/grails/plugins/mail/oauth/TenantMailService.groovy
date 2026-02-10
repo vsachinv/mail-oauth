@@ -27,6 +27,7 @@ class TenantMailService {
     OauthMailMessageBuilderFactory oauthMailMessageBuilderFactory
     MailOAuthService mailOAuthService
     TenantMailExecutorRegistry tenantMailExecutorRegistry
+    TenantGraphClientRegistryService tenantGraphClientRegistryService
     private static final Bindable<MailConfigurationProperties> CONFIG_BINDABLE = Bindable.of(MailConfigurationProperties)
 
     /**
@@ -74,24 +75,13 @@ class TenantMailService {
     private GraphMailSenderImpl createGraphMailSender(Long tenantId, ConfigObject cfg) {
         Integer  maxAttachmentSizeInMB = cfg?.oAuth?.graph?.attachmentMax ?: MailOAuthUtil.MAX_ATTACHMENT_SIZE_IN_MB
         Boolean   daemon = cfg?.oAuth?.daemon ?: false as Boolean
-        GraphApiClient graphApiClient = createGraphApiClient(tenantId, cfg)
+        GraphApiClient graphApiClient = tenantGraphClientRegistryService.getClient(tenantId, cfg)
         new GraphMailSenderImpl(
                 mailOAuthService,
                 graphApiClient,
                 maxAttachmentSizeInMB,
                 daemon,
                 tenantId
-        )
-    }
-
-    private GraphApiClient createGraphApiClient(Long tenantId, ConfigObject cfg) {
-        String scopes =  cfg.oAuth.api_scope
-        Boolean debug =  cfg.oAuth.debug ?: false
-        Long connectTimeout =  cfg.oAuth.graph.http.connectTimeout ?: 30L
-        Long writeTimeout = cfg.oAuth.graph.http.writeTimeout ?: 600L
-        Long readTimeout =  cfg.oAuth.graph.http.readTimeout ?: 600L
-        new GraphApiClient(new TokenBasedAuthCredential(tenantId, mailOAuthService),
-                scopes, debug, connectTimeout, writeTimeout, readTimeout
         )
     }
 

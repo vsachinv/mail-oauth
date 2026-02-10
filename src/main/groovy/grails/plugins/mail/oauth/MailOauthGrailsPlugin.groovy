@@ -76,6 +76,9 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 grailsApplication = ref('grailsApplication')
             }
             tenantMailExecutorRegistry(TenantMailExecutorRegistry)
+            tenantGraphClientRegistryService(TenantGraphClientRegistryService){
+                mailOAuthService = ref('mailOAuthService')
+            }
             tenantMailService(TenantMailService) {
                 tenantMailConfigResolverService = ref('tenantMailConfigResolverService')
                 mailMessageBuilderFactory = ref('mailMessageBuilderFactory')
@@ -83,11 +86,8 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 oauthMailMessageBuilderFactory = ref('oauthMailMessageBuilderFactory')
                 mailOAuthService = ref('mailOAuthService')
                 tenantMailExecutorRegistry = ref('tenantMailExecutorRegistry')
+                tenantGraphClientRegistryService = ref('tenantGraphClientRegistryService')
             }
-
-
-
-
 
 
             if (mailConfig.reader.enabled) {
