@@ -106,7 +106,7 @@ class MailOAuthService  {
             return MailOAuthUtil.REDIRECT_URI
         }
         OAuthToken oAuthToken = tokenStore.getToken(tenantId)
-        TenantOAuthContext ctx = buildContext(tenantId,cfg)
+        TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!oAuthToken) {
             log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found, nothing to revoke")
             return ctx.redirectUri
