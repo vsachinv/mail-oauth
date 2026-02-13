@@ -12,7 +12,7 @@ import com.github.scribejava.core.model.OAuth2AccessTokenErrorResponse
 class MailOAuthController {
 
     MailOAuthService mailOAuthService
-
+    TenantMailService tenantMailService
 
     def index() {
         log.debug("[GRAPH_EMAIL] [INDEX] - Accessed index endpoint")
@@ -74,12 +74,12 @@ class MailOAuthController {
         redirect(uri: cfg.oAuth.redirect.uri)
     }
 
-    def sendTestMail(Long tenantId,String email) {
+    def sendTestMail(Long tenantId, String email) {
         log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email} and tenantId ${tenantId}")
         def cfg =  mailOAuthService.getTenantConfig(tenantId)
         try {
             new InternetAddress(email).validate()
-            sendMail() {
+            tenantMailService.sendMail(tenantId) {
                 multipart false
                 to email
                 subject 'test email'
