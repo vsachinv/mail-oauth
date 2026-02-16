@@ -7,7 +7,6 @@ import grails.plugins.mail.MailMessageBuilderFactory
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
-import grails.plugins.mail.graph.token.TokenBasedAuthCredential
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry

@@ -32,7 +32,7 @@ class MailOAuthController {
         }
         mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         flash.message = "Refreshed Token"
-        redirect(uri: cfg.oAuth.redirect.uri)
+        redirect(uri: MailOAuthUtil.REDIRECT_URI)
     }
 
     def revoke(Long tenantId) {
@@ -60,18 +60,18 @@ class MailOAuthController {
         if (!token) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")
             flash.error = "Access token is not available."
-            redirect(uri: cfg.oAuth.redirect.uri)
+            redirect(uri: MailOAuthUtil.REDIRECT_URI)
             return
         }
         if (token.expireAt < new Date()) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - Token expired at ${token.expireAt}")
             flash.warn = "Access token is invalid. Please generate using refresh token"
-            redirect(uri: cfg.oAuth.redirect.uri)
+            redirect(uri: MailOAuthUtil.REDIRECT_URI)
             return
         }
         log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
         flash.message = "Access token is valid till ${token.expireAt} UTC."
-        redirect(uri: cfg.oAuth.redirect.uri)
+        redirect(uri: MailOAuthUtil.REDIRECT_URI)
     }
 
     def sendTestMail(Long tenantId, String email) {
@@ -99,7 +99,7 @@ class MailOAuthController {
             log.error("[GRAPH_EMAIL] [SEND_TEST_MAIL] - General error while sending test mail", ex)
             flash.error = "Test mail failed. Please contact your Administrator."
         }
-        redirect(uri: cfg.oAuth.redirect.uri)
+        redirect(uri: MailOAuthUtil.REDIRECT_URI)
     }
 
 }

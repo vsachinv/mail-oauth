@@ -46,7 +46,7 @@ class GraphApiClient {
         this.graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
     }
 
-    public GraphServiceClient getStandardMailClient() {
+    GraphServiceClient getStandardMailClient() {
         return this.graphServiceClient
     }
 
@@ -68,7 +68,7 @@ class GraphApiClient {
         return cache.get(key)
     }
 
-    public clearCache() {
+    clearCache() {
         cache.clear()
     }
 

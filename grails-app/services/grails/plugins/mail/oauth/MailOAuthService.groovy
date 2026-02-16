@@ -29,7 +29,7 @@ class MailOAuthService  {
         if (!ctx.enable) {
             log.warn("[GRAPH_EMAIL] [GENERATE] - OAuth configuration is disabled")
             flash.warn = "Please enable mail OAuth configuration"
-            return ctx.redirectUri
+            return MailOAuthUtil.REDIRECT_URI
         }
         String state = UUID.randomUUID().toString().replaceAll('-', '')
         String stateTenantId = MailOAuthUtil.buildOAuthState(tenantId,state)
@@ -60,7 +60,7 @@ class MailOAuthService  {
         if (!(ctx.daemon && (code || admin_consent)) && !code && !forced) {
             log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${ctx.daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
             flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
-            return ctx.redirectUri
+            return MailOAuthUtil.REDIRECT_URI
         }
         if (!forced && ctx.clientId != this.stateStoreService.getIdForState(state)) {
             throw new Exception('State mismatch. State sent is different from what received')
@@ -74,7 +74,7 @@ class MailOAuthService  {
         }
         OAuthToken authToken = new OAuthToken(token)
         tokenStore.saveToken(tenantId, authToken)
-        return ctx.redirectUri
+        return MailOAuthUtil.REDIRECT_URI
     }
 
 
@@ -109,7 +109,7 @@ class MailOAuthService  {
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!oAuthToken) {
             log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found, nothing to revoke")
-            return ctx.redirectUri
+            return MailOAuthUtil.REDIRECT_URI
         }
 
         // Always clear local store first
@@ -134,23 +134,22 @@ class MailOAuthService  {
                 log.warn("[GRAPH_EMAIL] [REVOKE_TOKEN] Failed to revoke access token due to : ${e.message}")
             }
         }
-        return ctx.redirectUri
+        return MailOAuthUtil.REDIRECT_URI
     }
 
 
     TenantOAuthContext buildContext(ConfigObject cfg, Long tenantId) {
         OAuth20Service service =
-                new ServiceBuilder(cfg.oAuth.client_id)
-                        .apiSecret(cfg.oAuth.secret_val)
-                        .defaultScope(cfg.oAuth.api_scope)
+                new ServiceBuilder(cfg.oAuth.client_id as String)
+                        .apiSecret(cfg.oAuth.secret_val as String)
+                        .defaultScope(cfg.oAuth.api_scope as String)
                         .callback(cfg.oAuth.callback_url as String)
-                        .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id))
+                        .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id as String))
 
         new TenantOAuthContext(
                 tenantId: tenantId,
                 oauthService: service,
                 daemon: cfg.oAuth.daemon ?: false,
-                redirectUri: cfg.oAuth.redirect.uri,
                 enable: cfg.oAuth.enabled ?: false,
                 clientId: cfg.oAuth.client_id
         )

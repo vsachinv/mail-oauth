@@ -2,10 +2,8 @@ package grails.plugins.mail.oauth.sender
 
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.oauth.MailOAuthService
-import grails.plugins.mail.oauth.token.OAuthToken
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
-import org.springframework.mail.MailMessage
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import javax.mail.Session
 

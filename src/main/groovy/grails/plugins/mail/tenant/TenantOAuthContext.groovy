@@ -6,7 +6,6 @@ class TenantOAuthContext {
     Long tenantId
     OAuth20Service oauthService
     boolean daemon
-    String redirectUri
     boolean enable
     String clientId
 }

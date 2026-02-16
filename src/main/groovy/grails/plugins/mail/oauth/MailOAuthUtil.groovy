@@ -21,8 +21,8 @@ class MailOAuthUtil {
 
     // TODO need to find solution to handle using API rather hard coded string GRAPH_ME_URL.
     @CompileDynamic
-    public static void validateToken(String accessToken, String username, OAuth20Service oAuth20Service) {
-        OAuthRequest request = new OAuthRequest(Verb.GET, GRAPH_ME_URL);
+    static void validateToken(String accessToken, String username, OAuth20Service oAuth20Service) {
+        OAuthRequest request = new OAuthRequest(Verb.GET, GRAPH_ME_URL)
         oAuth20Service.signRequest(accessToken, request)
         Response response = oAuth20Service.execute(request)
         if (response.getCode() != 200) {
@@ -35,7 +35,7 @@ class MailOAuthUtil {
         }
     }
 
-    public static String buildAdminConsentUrl(String state, String tenantId, String clientId, String redirectURL) {
+    static String buildAdminConsentUrl(String state, String tenantId, String clientId, String redirectURL) {
         return String.format("https://login.microsoftonline.com/%s/adminconsent" + "?client_id=%s" + "&state=%s" + "&redirect_uri=%s",
                 tenantId,
                 urlEncode(clientId),
@@ -44,7 +44,7 @@ class MailOAuthUtil {
     }
 
     private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
     }
 
     static String buildOAuthState(Long tenantId, String state) {
@@ -64,7 +64,7 @@ class MailOAuthUtil {
             if (kv.length == 2) {
                 String key = kv[0]
                 String value = kv[1].replaceAll('^"|"$', '')
-                result.put(key, value);
+                result.put(key, value)
             }
         }
         return result
