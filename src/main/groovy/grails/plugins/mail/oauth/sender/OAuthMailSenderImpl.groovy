@@ -12,13 +12,11 @@ import javax.mail.Session
 class OAuthMailSenderImpl extends JavaMailSenderImpl {
 
     MailOAuthService mailOAuthService
-    Long tenantId
     OAuthMailSenderImpl() {
     }
 
-    OAuthMailSenderImpl(MailConfigurationProperties mailProperties,MailOAuthService mailOAuthService,Long tenantId) {
+    OAuthMailSenderImpl(MailConfigurationProperties mailProperties,MailOAuthService mailOAuthService) {
         this.mailOAuthService = mailOAuthService
-        this.tenantId = tenantId
         if (mailProperties.host) {
             this.host = mailProperties.host
         } else if (!mailProperties.jndiName) {
@@ -58,7 +56,7 @@ class OAuthMailSenderImpl extends JavaMailSenderImpl {
 
     @Override
     String getPassword() {
-        mailOAuthService.getAccessToken(this.tenantId)?.accessToken
+        mailOAuthService.getAccessToken()?.accessToken
     }
 
 }

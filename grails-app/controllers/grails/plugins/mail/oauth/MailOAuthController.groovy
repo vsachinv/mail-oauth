@@ -1,6 +1,6 @@
 package grails.plugins.mail.oauth
 
-
+import grails.plugins.tenant.TenantContextProvider
 import groovy.util.logging.Slf4j
 import org.springframework.mail.MailAuthenticationException
 
@@ -13,32 +13,34 @@ class MailOAuthController {
 
     MailOAuthService mailOAuthService
     TenantMailService tenantMailService
+    TenantContextProvider tenantContextProvider
 
     def index() {
         log.debug("[GRAPH_EMAIL] [INDEX] - Accessed index endpoint")
     }
 
-    def generate(Long tenantId) {
-        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL for tenantId {}",tenantId)
-        redirect(url: mailOAuthService.generateAuthCodeURL(tenantId))
+    def generate() {
+        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        redirect(url: mailOAuthService.generateAuthCodeURL())
     }
 
-    def refresh(Long tenantId) {
+    def refresh() {
+        Long tenantId  = tenantContextProvider.getCurrentTenantId()
         log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}",tenantId)
         ConfigObject cfg = mailOAuthService.getTenantConfig(tenantId)
         if(!cfg){
             log.warn("Tenant configuration is not available for TenantId {}",tenantId)
-            redirect(uri: MailOAuthUtil.REDIRECT_URI)
+            redirect(uri: MailOAuthUtil.redirectUri())
         }
-        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
+        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken(tenantId))
         flash.message = "Refreshed Token"
-        redirect(uri: MailOAuthUtil.REDIRECT_URI)
+        redirect(uri: MailOAuthUtil.redirectUri())
     }
 
-    def revoke(Long tenantId) {
-        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken for tenantId {}",tenantId)
+    def revoke() {
+        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
         flash.message = "Token Revoked"
-        redirect(uri: mailOAuthService.revokeToken(tenantId))
+        redirect(uri: mailOAuthService.revokeToken())
     }
 
     def callback(String code, String state,Boolean admin_consent, Boolean forced) {
@@ -54,32 +56,31 @@ class MailOAuthController {
         redirect(uri: redirectUri)
     }
 
-    def tokenStatus(Long tenantId) {
-        def cfg = mailOAuthService.getTenantConfig(tenantId)
+    def tokenStatus() {
+        Long tenantId = tenantContextProvider.getCurrentTenantId()
         def token = mailOAuthService.tokenStore.getToken(tenantId)
         if (!token) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")
             flash.error = "Access token is not available."
-            redirect(uri: MailOAuthUtil.REDIRECT_URI)
+            redirect(uri: MailOAuthUtil.redirectUri())
             return
         }
         if (token.expireAt < new Date()) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - Token expired at ${token.expireAt}")
             flash.warn = "Access token is invalid. Please generate using refresh token"
-            redirect(uri: MailOAuthUtil.REDIRECT_URI)
+            redirect(uri: MailOAuthUtil.redirectUri())
             return
         }
         log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
         flash.message = "Access token is valid till ${token.expireAt} UTC."
-        redirect(uri: MailOAuthUtil.REDIRECT_URI)
+        redirect(uri: MailOAuthUtil.redirectUri())
     }
 
-    def sendTestMail(Long tenantId, String email) {
-        log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email} and tenantId ${tenantId}")
-        def cfg =  mailOAuthService.getTenantConfig(tenantId)
+    def sendTestMail(String email) {
+        log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email}")
         try {
             new InternetAddress(email).validate()
-            tenantMailService.sendMail(tenantId) {
+            tenantMailService.sendMail {
                 multipart false
                 to email
                 subject 'test email'
@@ -99,7 +100,7 @@ class MailOAuthController {
             log.error("[GRAPH_EMAIL] [SEND_TEST_MAIL] - General error while sending test mail", ex)
             flash.error = "Test mail failed. Please contact your Administrator."
         }
-        redirect(uri: MailOAuthUtil.REDIRECT_URI)
+        redirect(uri: MailOAuthUtil.redirectUri())
     }
 
 }

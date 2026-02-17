@@ -17,7 +17,9 @@ class MailOAuthUtil {
     private static final String GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me"
     static final String TENANT_PREFIX = "tenant_"
     static final Integer MAX_ATTACHMENT_SIZE_IN_MB = 3
-    static final String REDIRECT_URI = Holders.config.getProperty("grails?.mail?.oAuth?.redirect?.uri")
+    static String redirectUri() {
+        Holders.config.getProperty('grails.mail.oAuth.redirect.uri', String)
+    }
 
     // TODO need to find solution to handle using API rather hard coded string GRAPH_ME_URL.
     @CompileDynamic

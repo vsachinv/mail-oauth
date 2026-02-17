@@ -9,12 +9,15 @@ import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
+import grails.plugins.tenant.TenantContextProvider
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
 import groovy.util.logging.Slf4j
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources
 import org.springframework.core.env.PropertiesPropertySource
+import org.springframework.mail.MailMessage
+
 import java.util.concurrent.ExecutorService
 
 @Slf4j
@@ -27,15 +30,14 @@ class TenantMailService {
     MailOAuthService mailOAuthService
     TenantMailExecutorRegistry tenantMailExecutorRegistry
     TenantGraphClientRegistryService tenantGraphClientRegistryService
+    TenantContextProvider tenantContextProvider
     private static final Bindable<MailConfigurationProperties> CONFIG_BINDABLE = Bindable.of(MailConfigurationProperties)
 
     /**
      * Tenant-aware sendMail API
      */
-    void sendMail(Long tenantId,
-                  @DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder)
-                          Closure callable) {
-
+    MailMessage sendMail(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure callable) {
+        Long tenantId = tenantContextProvider.getCurrentTenantId()
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         if (!cfg) {
             log.error("Mail configuration is not found for tenant: ${tenantId}")
@@ -63,12 +65,12 @@ class TenantMailService {
             return graphMailMessageBuilderFactory.createBuilder(props,createGraphMailSender(tenantId, cfg))
         }
         log.info("[SMTP OAUTH MAIL] TenantId ={}",tenantId)
-        return  oauthMailMessageBuilderFactory.createBuilder(props,createOAuthMailSender(tenantId,props))
+        return  oauthMailMessageBuilderFactory.createBuilder(props,createOAuthMailSender(props))
     }
 
 
-    private OAuthMailSenderImpl createOAuthMailSender(Long tenantId, MailConfigurationProperties props){
-        return new OAuthMailSenderImpl(props, mailOAuthService, tenantId)
+    private OAuthMailSenderImpl createOAuthMailSender(MailConfigurationProperties props){
+        return new OAuthMailSenderImpl(props, mailOAuthService)
     }
 
     private GraphMailSenderImpl createGraphMailSender(Long tenantId, ConfigObject cfg) {
@@ -79,9 +81,7 @@ class TenantMailService {
                 mailOAuthService,
                 graphApiClient,
                 maxAttachmentSizeInMB,
-                daemon,
-                tenantId
-        )
+                daemon)
     }
 
     MailConfigurationProperties toMailProperties(ConfigObject config) {

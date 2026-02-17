@@ -68,7 +68,7 @@ class GraphApiClient {
         return cache.get(key)
     }
 
-    clearCache() {
+    void clearCache() {
         cache.clear()
     }
 

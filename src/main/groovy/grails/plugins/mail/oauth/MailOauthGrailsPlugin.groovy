@@ -69,6 +69,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             mailConfigHash = mailConfig.hashCode()
             stateStoreService(SessionStateStoreService)
             tokenStore(MemoryTokenStore)
+
             graphMailMessageBuilderFactory(GraphMailMessageBuilderFactory)
             oauthMailMessageBuilderFactory(OauthMailMessageBuilderFactory)
             mailMessageBuilderFactory(MailMessageBuilderFactory)
@@ -87,6 +88,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 mailOAuthService = ref('mailOAuthService')
                 tenantMailExecutorRegistry = ref('tenantMailExecutorRegistry')
                 tenantGraphClientRegistryService = ref('tenantGraphClientRegistryService')
+                tenantContextProvider = ref('tenantContextProvider')
             }
 
 

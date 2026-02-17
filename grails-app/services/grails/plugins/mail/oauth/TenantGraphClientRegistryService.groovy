@@ -33,7 +33,7 @@ class TenantGraphClientRegistryService {
                 return cached.client
             }
 
-            GraphApiClient newClient = buildClient(tenantId, cfg)
+            GraphApiClient newClient = buildClient(cfg)
 
             graphClientCache.put(tenantId, new CachedGraphClient(
                     signature: signature,
@@ -54,7 +54,7 @@ class TenantGraphClientRegistryService {
         log.info("[GRAPH MAIL] GraphApiClient cache cleared for all tenants")
     }
 
-    private GraphApiClient buildClient(Long tenantId, ConfigObject cfg) {
+    private GraphApiClient buildClient(ConfigObject cfg) {
 
         String scopes = cfg?.oAuth?.api_scope
         Boolean debug = cfg?.oAuth?.debug ?: false
@@ -62,7 +62,7 @@ class TenantGraphClientRegistryService {
         Long writeTimeout = cfg?.oAuth?.graph?.http?.writeTimeout ?: 600L
         Long readTimeout = cfg?.oAuth?.graph?.http?.readTimeout ?: 600L
         return new GraphApiClient(
-                new TokenBasedAuthCredential(tenantId, mailOAuthService),
+                new TokenBasedAuthCredential(mailOAuthService: mailOAuthService),
                 scopes,
                 debug,
                 connectTimeout,

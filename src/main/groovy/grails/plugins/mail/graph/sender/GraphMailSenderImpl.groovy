@@ -34,12 +34,11 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
     Integer maxAttachmentSizeInMB = 3
     Boolean daemon = false
 
-    GraphMailSenderImpl(MailOAuthService mailOAuthService,GraphApiClient graphApiClient, Integer maxAttachmentSizeInMB, Boolean daemon, Long tenantId ){
+    GraphMailSenderImpl(MailOAuthService mailOAuthService,GraphApiClient graphApiClient, Integer maxAttachmentSizeInMB, Boolean daemon){
         this.mailOAuthService  = mailOAuthService
         this.graphApiClient = graphApiClient
         this.maxAttachmentSizeInMB = maxAttachmentSizeInMB
         this.daemon = daemon
-        this.tenantId = tenantId
     }
 
     @Override
@@ -50,7 +49,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     void sendMailViaGraph(Message message, List<FileAttachment> attachmentList) throws MailException {
         Map<Object, Exception> failedMessages = new LinkedHashMap<Object, Exception>()
-        boolean connectionStatus = !!mailOAuthService.getAccessToken(this.tenantId)
+        boolean connectionStatus = !!mailOAuthService.getAccessToken()
         try {
             if (!connectionStatus) {
                 throw new MailAuthenticationException(new AuthenticationFailedException())
