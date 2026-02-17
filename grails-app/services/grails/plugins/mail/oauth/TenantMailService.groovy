@@ -74,14 +74,12 @@ class TenantMailService {
     }
 
     private GraphMailSenderImpl createGraphMailSender(Long tenantId, ConfigObject cfg) {
-        Integer  maxAttachmentSizeInMB = cfg?.oAuth?.graph?.attachmentMax ?: MailOAuthUtil.MAX_ATTACHMENT_SIZE_IN_MB
-        Boolean   daemon = cfg?.oAuth?.daemon ?: false as Boolean
         GraphApiClient graphApiClient = tenantGraphClientRegistryService.getClient(tenantId, cfg)
         new GraphMailSenderImpl(
                 mailOAuthService,
                 graphApiClient,
-                maxAttachmentSizeInMB,
-                daemon)
+                MailOAuthUtil.attachmentMax(),
+                MailOAuthUtil.isDaemon())
     }
 
     MailConfigurationProperties toMailProperties(ConfigObject config) {

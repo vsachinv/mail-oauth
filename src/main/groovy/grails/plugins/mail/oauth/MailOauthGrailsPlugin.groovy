@@ -116,7 +116,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
         }
     }
 
-    void onConfigChange(Map<String, Object> event) {
+   /* void onConfigChange(Map<String, Object> event) {
         ConfigObject newMailConfig = event.source.grails.mail
         if (!newMailConfig.oAuth.enabled) {
             return
@@ -157,5 +157,5 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
 
         }
 
-    }
+    }*/
 }

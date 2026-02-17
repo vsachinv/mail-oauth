@@ -32,9 +32,7 @@ class TenantGraphClientRegistryService {
             if (cached && cached.signature == signature) {
                 return cached.client
             }
-
-            GraphApiClient newClient = buildClient(cfg)
-
+            GraphApiClient newClient = buildClient()
             graphClientCache.put(tenantId, new CachedGraphClient(
                     signature: signature,
                     client: newClient
@@ -54,20 +52,14 @@ class TenantGraphClientRegistryService {
         log.info("[GRAPH MAIL] GraphApiClient cache cleared for all tenants")
     }
 
-    private GraphApiClient buildClient(ConfigObject cfg) {
-
-        String scopes = cfg?.oAuth?.api_scope
-        Boolean debug = cfg?.oAuth?.debug ?: false
-        Long connectTimeout = cfg?.oAuth?.graph?.http?.connectTimeout ?: 30L
-        Long writeTimeout = cfg?.oAuth?.graph?.http?.writeTimeout ?: 600L
-        Long readTimeout = cfg?.oAuth?.graph?.http?.readTimeout ?: 600L
+    private GraphApiClient buildClient() {
         return new GraphApiClient(
                 new TokenBasedAuthCredential(mailOAuthService: mailOAuthService),
-                scopes,
-                debug,
-                connectTimeout,
-                writeTimeout,
-                readTimeout
+                MailOAuthUtil.apiScope(),
+                MailOAuthUtil.isDebug(),
+                MailOAuthUtil.connectionTimeOut(),
+                MailOAuthUtil.writeTimeOut(),
+                MailOAuthUtil.readTimeOut()
         )
     }
 
@@ -76,12 +68,7 @@ class TenantGraphClientRegistryService {
                 cfg?.oAuth?.enabled,
                 cfg?.oAuth?.graph?.enabled,
                 cfg?.oAuth?.client_id,
-                cfg?.oAuth?.tenant_id,
-                cfg?.oAuth?.api_scope,
-                cfg?.oAuth?.debug,
-                cfg?.oAuth?.graph?.http?.connectTimeout,
-                cfg?.oAuth?.graph?.http?.writeTimeout,
-                cfg?.oAuth?.graph?.http?.readTimeout
+                cfg?.oAuth?.tenant_id
         ].collect { it?.toString() ?: "" }.join("|")
     }
 }

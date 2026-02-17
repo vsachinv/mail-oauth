@@ -41,7 +41,7 @@ class MailOAuthService  {
         stateStoreService.storeState(ctx.clientId, stateTenantId)
         if (ctx.daemon) {
             log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
-            return MailOAuthUtil.buildAdminConsentUrl(stateTenantId, cfg.oAuth.tenant_id, ctx.clientId,  cfg.oAuth.callback_url)
+            return MailOAuthUtil.buildAdminConsentUrl(stateTenantId, cfg.oAuth.tenant_id, ctx.clientId,  MailOAuthUtil.callBackUrl())
         }
         log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
         Map<String, String> additionalParams = [
@@ -149,14 +149,14 @@ class MailOAuthService  {
         OAuth20Service service =
                 new ServiceBuilder(cfg.oAuth.client_id as String)
                         .apiSecret(cfg.oAuth.secret_val as String)
-                        .defaultScope(cfg.oAuth.api_scope as String)
-                        .callback(cfg.oAuth.callback_url as String)
+                        .defaultScope(MailOAuthUtil.apiScope())
+                        .callback(MailOAuthUtil.callBackUrl())
                         .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id as String))
 
         new TenantOAuthContext(
                 tenantId: tenantId,
                 oauthService: service,
-                daemon: cfg.oAuth.daemon ?: false,
+                daemon: MailOAuthUtil.isDaemon(),
                 enable: cfg.oAuth.enabled ?: false,
                 clientId: cfg.oAuth.client_id
         )
