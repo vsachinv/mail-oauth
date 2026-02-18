@@ -33,11 +33,16 @@ class TenantMailService {
     TenantContextProvider tenantContextProvider
     private static final Bindable<MailConfigurationProperties> CONFIG_BINDABLE = Bindable.of(MailConfigurationProperties)
 
+
+    MailMessage sendMail(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure callable) {
+        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        sendMailWithTenant(tenantId,callable)
+    }
+
     /**
      * Tenant-aware sendMail API
      */
-    MailMessage sendMail(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure callable) {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
+    MailMessage sendMailWithTenant(Long tenantId,@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure callable) {
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         if (!cfg) {
             log.error("Mail configuration is not found for tenant: ${tenantId}")
