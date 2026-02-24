@@ -96,9 +96,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 readerTokenStoreService(InMemoryReaderTokenStoreService)
                 if (mailConfig.reader.graph.enabled) {
                     println "Enabled mail-reader graph configuration"
-                    if (!mailConfig.oAuth.enabled || !mailConfig.oAuth.graph.enabled) {
-                        graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
-                    }
+                    graphApiClient(GraphApiClient, new BasicAuthenticationCredential('', ''), '', mailConfig.oAuth.debug ?: false, mailConfig.oAuth.graph.http.connectTimeout ?: 30L, mailConfig.oAuth.graph.http.writeTimeout ?: 600L, mailConfig.oAuth.graph.http.readTimeout ?: 600L)
                     graphEmailReaderService(GraphEmailReaderService) {
                         graphApiClient = ref('graphApiClient')
                         readerTokenStoreService = ref('readerTokenStoreService')
