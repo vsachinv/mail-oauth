@@ -11,6 +11,7 @@ import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.tenant.TenantContextProvider
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
+import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder
@@ -56,6 +57,7 @@ class TenantMailService {
         callable.delegate = builder
         callable.resolveStrategy = Closure.DELEGATE_FIRST
         callable.call(builder)
+        TenantIdContext.setTenantId(tenantId)
         ExecutorService executor =
                 tenantMailExecutorRegistry.executorFor(tenantId, props.poolSize)
         builder.sendMessage(executor)

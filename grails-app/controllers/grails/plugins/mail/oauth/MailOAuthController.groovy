@@ -1,6 +1,7 @@
 package grails.plugins.mail.oauth
 
 import grails.plugins.tenant.TenantContextProvider
+import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
 import org.springframework.mail.MailAuthenticationException
 
@@ -21,11 +22,14 @@ class MailOAuthController {
 
     def generate() {
         log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        TenantIdContext.setTenantId(tenantId)
         redirect(url: mailOAuthService.generateAuthCodeURL())
     }
 
     def refresh() {
         Long tenantId  = tenantContextProvider.getCurrentTenantId()
+        TenantIdContext.setTenantId(tenantId)
         log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}",tenantId)
         ConfigObject cfg = mailOAuthService.getTenantConfig(tenantId)
         if(!cfg){
@@ -39,6 +43,8 @@ class MailOAuthController {
 
     def revoke() {
         log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
+        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        TenantIdContext.setTenantId(tenantId)
         flash.message = "Token Revoked"
         redirect(uri: mailOAuthService.revokeToken())
     }
@@ -58,6 +64,7 @@ class MailOAuthController {
 
     def tokenStatus() {
         Long tenantId = tenantContextProvider.getCurrentTenantId()
+        TenantIdContext.setTenantId(tenantId)
         def token = mailOAuthService.tokenStore.getToken(tenantId)
         if (!token) {
             log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")

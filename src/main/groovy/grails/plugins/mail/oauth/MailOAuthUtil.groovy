@@ -16,6 +16,7 @@ class MailOAuthUtil {
 
     private static final String GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me"
     static final String TENANT_PREFIX = "tenant_"
+    static final String TENANT_ID_LOG_VAR_NAME = "tenantId"
     static String redirectUri() {
         Holders.config.getProperty('grails.mail.oAuth.redirect.uri', String)
     }

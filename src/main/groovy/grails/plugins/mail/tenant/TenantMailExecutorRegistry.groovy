@@ -16,7 +16,7 @@ class TenantMailExecutorRegistry {
         executors.computeIfAbsent(tenantId) {
             log.info("[MAIL] Creating executor for tenant={}", tenantId)
 
-            ThreadPoolExecutor executor = new ThreadPoolExecutor(
+            ThreadPoolExecutor delegate = new ThreadPoolExecutor(
                     poolSize ?: DEFAULT_POOL_SIZE,
                     poolSize ?: DEFAULT_POOL_SIZE,
                     60,
@@ -29,8 +29,9 @@ class TenantMailExecutorRegistry {
                         }
                     }
             )
-            executor.allowCoreThreadTimeOut(true)
-            return executor
+            delegate.allowCoreThreadTimeOut(true)
+            // 🔥 Wrap executor before returning
+            return new TenantAwareExecutorService(delegate)
         }
     }
 

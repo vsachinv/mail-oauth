@@ -10,6 +10,7 @@ import grails.plugins.mail.oauth.token.OAuthToken
 import grails.plugins.mail.oauth.token.TokenStore
 import grails.plugins.tenant.TenantContextProvider
 import grails.plugins.mail.tenant.TenantOAuthContext
+import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
 
 
@@ -22,7 +23,7 @@ class MailOAuthService  {
     TenantContextProvider tenantContextProvider
 
     String generateAuthCodeURL() {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        Long tenantId = TenantIdContext.getTenantId()
         log.info("Inside generateAuthCodeURL for tenantId {}",tenantId)
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         if(!cfg){
@@ -83,7 +84,8 @@ class MailOAuthService  {
 
 
     OAuthToken getAccessToken() {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        Long tenantId = TenantIdContext.getTenantId()
+        log.error("tenantId {}",tenantId)
         OAuthToken token = tokenStore.getToken(tenantId)
         if (!token || token.expireAt.before(new Date())) {
             token = refreshAccessToken(token)
@@ -92,8 +94,8 @@ class MailOAuthService  {
     }
 
     synchronized OAuthToken refreshAccessToken(OAuthToken oldToken) {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
-        log.debug('Refreshing token for tenantId  {}',tenantId)
+        Long tenantId = TenantIdContext.getTenantId()
+        log.error('Refreshing token for tenantId  {}',tenantId)
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         OAuth2AccessToken oauthToken = ctx.daemon ?
@@ -106,7 +108,7 @@ class MailOAuthService  {
     }
 
     String revokeToken() {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
+        Long tenantId = TenantIdContext.getTenantId()
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         if(!cfg){
             log.warn("Tenant configuration is not available for TenantId {}",tenantId)
