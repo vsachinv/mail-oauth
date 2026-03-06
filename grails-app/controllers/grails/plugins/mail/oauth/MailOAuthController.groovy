@@ -36,7 +36,7 @@ class MailOAuthController {
             log.warn("Tenant configuration is not available for TenantId {}",tenantId)
             redirect(uri: MailOAuthUtil.redirectUri())
         }
-        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken(tenantId))
+        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         flash.message = "Refreshed Token"
         redirect(uri: MailOAuthUtil.redirectUri())
     }

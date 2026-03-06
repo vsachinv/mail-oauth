@@ -85,17 +85,16 @@ class MailOAuthService  {
 
     OAuthToken getAccessToken() {
         Long tenantId = TenantIdContext.getTenantId()
-        log.error("tenantId {}",tenantId)
+        log.info('Get token for tenantId  {}',tenantId)
         OAuthToken token = tokenStore.getToken(tenantId)
         if (!token || token.expireAt.before(new Date())) {
-            token = refreshAccessToken(token)
+            token = refreshAccessToken(tenantId,token)
         }
         token
     }
 
-    synchronized OAuthToken refreshAccessToken(OAuthToken oldToken) {
-        Long tenantId = TenantIdContext.getTenantId()
-        log.error('Refreshing token for tenantId  {}',tenantId)
+    synchronized OAuthToken refreshAccessToken(Long tenantId, OAuthToken oldToken) {
+        log.info('Refreshing token for tenantId  {}',tenantId)
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         OAuth2AccessToken oauthToken = ctx.daemon ?
