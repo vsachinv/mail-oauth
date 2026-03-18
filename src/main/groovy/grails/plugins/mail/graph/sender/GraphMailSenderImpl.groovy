@@ -15,6 +15,7 @@ import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.oauth.MailOAuthService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
+import grails.util.Holders
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -141,10 +142,10 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     @CompileDynamic
     void testConnection(Long tenantId) throws ApiException {
-        /*if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
+        if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
             log.warn("[GRAPH_EMAIL] [HEALTH_CHECK] Disabled via config.")
             return
-        }*/
+        }
         log.debug("[GRAPH_EMAIL] [HEALTH_CHECK] Testing connection with current access token.")
         mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         log.info("[GRAPH_EMAIL] [HEALTH_CHECK] Token refresh successful.")

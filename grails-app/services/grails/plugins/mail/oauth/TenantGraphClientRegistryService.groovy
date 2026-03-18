@@ -1,19 +1,18 @@
 package grails.plugins.mail.oauth
 
-import grails.gorm.services.Service
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.token.TokenBasedAuthCredential
 import groovy.util.logging.Slf4j
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 
 @Slf4j
-@Service
 class TenantGraphClientRegistryService {
     MailOAuthService mailOAuthService
 
     private final Map<Long, CachedGraphClient> graphClientCache = new ConcurrentHashMap<>()
-
+    private final ConcurrentHashMap<Long, ReentrantLock> tenantLocks = new ConcurrentHashMap<>()
     private static class CachedGraphClient {
         String signature
         GraphApiClient client
@@ -23,11 +22,14 @@ class TenantGraphClientRegistryService {
         String signature = graphConfigSignature(cfg)
         CachedGraphClient cached = graphClientCache.get(tenantId)
         if (cached && cached.signature == signature) {
-            log.info("Client found in cache")
+            log.debug("Client found in cache")
             return cached.client
         }
-        synchronized (("GRAPH_CLIENT_" + tenantId).intern()) {
-
+        // Slow path — per-tenant lock to avoid redundant client builds
+        ReentrantLock lock = tenantLocks.computeIfAbsent(tenantId) { new ReentrantLock() }
+        lock.lock()
+        try {
+            // Double-check after acquiring lock
             cached = graphClientCache.get(tenantId)
             if (cached && cached.signature == signature) {
                 return cached.client
@@ -40,6 +42,8 @@ class TenantGraphClientRegistryService {
 
             log.info("[GRAPH MAIL] GraphApiClient cache refreshed for tenantId={}", tenantId)
             return newClient
+        } finally {
+            lock.unlock()
         }
     }
     void evict(Long tenantId) {

@@ -21,32 +21,44 @@ class MailOAuthController {
     }
 
     def generate() {
-        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
-        TenantIdContext.setTenantId(tenantId)
-        redirect(url: mailOAuthService.generateAuthCodeURL())
+        try {
+            log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+            Long tenantId = tenantContextProvider.getCurrentTenantId()
+            TenantIdContext.setTenantId(tenantId)
+            redirect(url: mailOAuthService.generateAuthCodeURL())
+        }finally {
+            TenantIdContext.clear()
+        }
     }
 
     def refresh() {
-        Long tenantId  = tenantContextProvider.getCurrentTenantId()
-        TenantIdContext.setTenantId(tenantId)
-        log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}",tenantId)
-        ConfigObject cfg = mailOAuthService.getTenantConfig(tenantId)
-        if(!cfg){
-            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+        try {
+            Long tenantId = tenantContextProvider.getCurrentTenantId()
+            TenantIdContext.setTenantId(tenantId)
+            log.info("[GRAPH_EMAIL] [REFRESH] - Requested refresh of AuthToken for tenantId {}", tenantId)
+            ConfigObject cfg = mailOAuthService.getTenantConfig(tenantId)
+            if (!cfg) {
+                log.warn("Tenant configuration is not available for TenantId {}", tenantId)
+                redirect(uri: MailOAuthUtil.redirectUri())
+            }
+            mailOAuthService.refreshAccessToken(tenantId, mailOAuthService.tokenStore.getToken(tenantId))
+            flash.message = "Refreshed Token"
             redirect(uri: MailOAuthUtil.redirectUri())
+        }finally {
+            TenantIdContext.clear()
         }
-        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
-        flash.message = "Refreshed Token"
-        redirect(uri: MailOAuthUtil.redirectUri())
     }
 
     def revoke() {
-        log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
-        TenantIdContext.setTenantId(tenantId)
-        flash.message = "Token Revoked"
-        redirect(uri: mailOAuthService.revokeToken())
+        try {
+            log.info("[GRAPH_EMAIL] [REVOKE] - Requested revoke of AuthToken")
+            Long tenantId = tenantContextProvider.getCurrentTenantId()
+            TenantIdContext.setTenantId(tenantId)
+            flash.message = "Token Revoked"
+            redirect(uri: mailOAuthService.revokeToken())
+        }finally {
+            TenantIdContext.clear()
+        }
     }
 
     def callback(String code, String state,Boolean admin_consent, Boolean forced) {
@@ -63,24 +75,28 @@ class MailOAuthController {
     }
 
     def tokenStatus() {
-        Long tenantId = tenantContextProvider.getCurrentTenantId()
-        TenantIdContext.setTenantId(tenantId)
-        def token = mailOAuthService.tokenStore.getToken(tenantId)
-        if (!token) {
-            log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")
-            flash.error = "Access token is not available."
+        try {
+            Long tenantId = tenantContextProvider.getCurrentTenantId()
+            TenantIdContext.setTenantId(tenantId)
+            def token = mailOAuthService.tokenStore.getToken(tenantId)
+            if (!token) {
+                log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - No token available")
+                flash.error = "Access token is not available."
+                redirect(uri: MailOAuthUtil.redirectUri())
+                return
+            }
+            if (token.expireAt < new Date()) {
+                log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - Token expired at ${token.expireAt}")
+                flash.warn = "Access token is invalid. Please generate using refresh token"
+                redirect(uri: MailOAuthUtil.redirectUri())
+                return
+            }
+            log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
+            flash.message = "Access token is valid till ${token.expireAt} UTC."
             redirect(uri: MailOAuthUtil.redirectUri())
-            return
+        }finally {
+            TenantIdContext.clear()
         }
-        if (token.expireAt < new Date()) {
-            log.warn("[GRAPH_EMAIL] [TOKEN_STATUS] - Token expired at ${token.expireAt}")
-            flash.warn = "Access token is invalid. Please generate using refresh token"
-            redirect(uri: MailOAuthUtil.redirectUri())
-            return
-        }
-        log.debug("[GRAPH_EMAIL] [TOKEN_STATUS] - Token valid till ${token.expireAt}")
-        flash.message = "Access token is valid till ${token.expireAt} UTC."
-        redirect(uri: MailOAuthUtil.redirectUri())
     }
 
     def sendTestMail(String email) {

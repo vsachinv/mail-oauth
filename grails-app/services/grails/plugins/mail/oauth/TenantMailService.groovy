@@ -3,7 +3,6 @@ package grails.plugins.mail.oauth
 
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
-import grails.plugins.mail.MailMessageBuilderFactory
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
@@ -25,7 +24,6 @@ import java.util.concurrent.ExecutorService
 class TenantMailService {
 
     TenantMailConfigResolverService tenantMailConfigResolverService
-    MailMessageBuilderFactory mailMessageBuilderFactory
     GraphMailMessageBuilderFactory graphMailMessageBuilderFactory
     OauthMailMessageBuilderFactory oauthMailMessageBuilderFactory
     MailOAuthService mailOAuthService
@@ -45,19 +43,13 @@ class TenantMailService {
      */
     MailMessage sendMailWithTenant(Long tenantId,@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure callable) {
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
-        if (!cfg) {
-            log.error("Mail configuration is not found for tenant: ${tenantId}")
-            throw new IllegalStateException(
-                    "Mail configuration is not found for tenant: ${tenantId}"
-            )
-        }
 
         MailConfigurationProperties props = toMailProperties(cfg)
         MailMessageBuilder builder = resolveBuilder(tenantId,cfg, props)
         callable.delegate = builder
         callable.resolveStrategy = Closure.DELEGATE_FIRST
-        callable.call(builder)
         TenantIdContext.setTenantId(tenantId)
+        callable.call(builder)
         ExecutorService executor =
                 tenantMailExecutorRegistry.executorFor(tenantId, props.poolSize)
         builder.sendMessage(executor)

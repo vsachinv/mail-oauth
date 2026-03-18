@@ -1,10 +1,8 @@
 package grails.plugins.mail.oauth
 
 import grails.core.GrailsApplication
-import grails.gorm.services.Service
 import groovy.util.logging.Slf4j
 
-@Service
 @Slf4j
 class TenantMailConfigResolverService {
 

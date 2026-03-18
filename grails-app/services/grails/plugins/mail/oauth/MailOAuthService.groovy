@@ -8,7 +8,6 @@ import com.github.scribejava.core.revoke.TokenTypeHint
 import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.oauth.token.OAuthToken
 import grails.plugins.mail.oauth.token.TokenStore
-import grails.plugins.tenant.TenantContextProvider
 import grails.plugins.mail.tenant.TenantOAuthContext
 import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
@@ -20,7 +19,6 @@ class MailOAuthService  {
     TokenStore tokenStore
     TenantMailConfigResolverService tenantMailConfigResolverService
     SessionStateStoreService stateStoreService
-    TenantContextProvider tenantContextProvider
 
     String generateAuthCodeURL() {
         Long tenantId = TenantIdContext.getTenantId()
@@ -33,7 +31,6 @@ class MailOAuthService  {
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!ctx.enable) {
             log.warn("[GRAPH_EMAIL] [GENERATE] - OAuth configuration is disabled")
-            flash.warn = "Please enable mail OAuth configuration"
             return MailOAuthUtil.redirectUri()
         }
         String state = UUID.randomUUID().toString().replaceAll('-', '')
@@ -64,7 +61,6 @@ class MailOAuthService  {
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!(ctx.daemon && (code || admin_consent)) && !code && !forced) {
             log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${ctx.daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
-            flash.error = "Invalid code received error: ${params.error} \n Description: ${params.error_description}"
             return MailOAuthUtil.redirectUri()
         }
         if (!forced && ctx.clientId != this.stateStoreService.getIdForState(state)) {

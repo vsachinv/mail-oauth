@@ -6,12 +6,10 @@ import grails.plugins.mail.MailMessageBuilderFactory
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.reader.GraphEmailReaderService
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
-import grails.plugins.mail.graph.sender.GraphMailSenderImpl
 import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.graph.token.InMemoryReaderTokenStoreService
 import grails.plugins.mail.imap.reader.ImapEmailReaderService
 
-import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.mail.oauth.token.MemoryTokenStore
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
@@ -82,7 +80,6 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             }
             tenantMailService(TenantMailService) {
                 tenantMailConfigResolverService = ref('tenantMailConfigResolverService')
-                mailMessageBuilderFactory = ref('mailMessageBuilderFactory')
                 graphMailMessageBuilderFactory = ref('graphMailMessageBuilderFactory')
                 oauthMailMessageBuilderFactory = ref('oauthMailMessageBuilderFactory')
                 mailOAuthService = ref('mailOAuthService')
