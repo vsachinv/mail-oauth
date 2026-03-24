@@ -34,9 +34,24 @@ class TenantMailConfigResolverService {
             )
         }
 
+        // Build defaults from the top-level grails.mail config
+        ConfigObject defaultCfg = new ConfigObject()
+        def globalMailConfig = grailsApplication?.config?.grails?.mail
+
+        if (globalMailConfig?.host) {
+            defaultCfg.host = globalMailConfig.host
+        }
+        if (globalMailConfig?.port) {
+            defaultCfg.port = globalMailConfig.port
+        }
+        if (globalMailConfig?.props) {
+            defaultCfg.props = globalMailConfig.props
+        }
+
+        // Merge: defaults first, then tenant/org config on top (tenant values win)
         ConfigObject merged = new ConfigObject()
+        merged.merge(defaultCfg)
         merged.merge(resolvedCfg)
-        return merged
     }
 
 }
