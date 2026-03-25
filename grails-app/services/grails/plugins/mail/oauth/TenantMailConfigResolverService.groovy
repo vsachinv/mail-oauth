@@ -52,6 +52,7 @@ class TenantMailConfigResolverService {
         ConfigObject merged = new ConfigObject()
         merged.merge(defaultCfg)
         merged.merge(resolvedCfg)
+        return merged
     }
 
 }
