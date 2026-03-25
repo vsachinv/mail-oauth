@@ -3,6 +3,7 @@ package grails.plugins.mail.oauth
 import com.azure.core.credential.BasicAuthenticationCredential
 import grails.plugins.*
 import grails.plugins.mail.MailMessageBuilderFactory
+import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.reader.GraphEmailReaderService
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
@@ -13,6 +14,7 @@ import grails.plugins.mail.imap.reader.ImapEmailReaderService
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.mail.oauth.token.MemoryTokenStore
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
+import org.springframework.mail.MailSender
 
 @SuppressWarnings('unused')
 class MailOauthGrailsPlugin extends Plugin {
@@ -67,10 +69,12 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
             mailConfigHash = mailConfig.hashCode()
             stateStoreService(SessionStateStoreService)
             tokenStore(MemoryTokenStore)
-
             graphMailMessageBuilderFactory(GraphMailMessageBuilderFactory)
             oauthMailMessageBuilderFactory(OauthMailMessageBuilderFactory)
-            mailMessageBuilderFactory(MailMessageBuilderFactory)
+            mailMessageBuilderFactory(MailMessageBuilderFactory) {
+                mailSender = ref('mailSender')
+                mailMessageContentRenderer = ref('mailMessageContentRenderer')
+            }
             tenantMailConfigResolverService(TenantMailConfigResolverService){
                 grailsApplication = ref('grailsApplication')
             }
@@ -82,6 +86,7 @@ This plugin has been developed for supporting Microsoft OAuth based SMTP protoco
                 tenantMailConfigResolverService = ref('tenantMailConfigResolverService')
                 graphMailMessageBuilderFactory = ref('graphMailMessageBuilderFactory')
                 oauthMailMessageBuilderFactory = ref('oauthMailMessageBuilderFactory')
+                mailMessageBuilderFactory = ref('mailMessageBuilderFactory')
                 mailOAuthService = ref('mailOAuthService')
                 tenantMailExecutorRegistry = ref('tenantMailExecutorRegistry')
                 tenantGraphClientRegistryService = ref('tenantGraphClientRegistryService')

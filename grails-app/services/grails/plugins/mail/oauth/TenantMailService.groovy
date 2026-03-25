@@ -3,6 +3,7 @@ package grails.plugins.mail.oauth
 
 import grails.plugins.mail.MailConfigurationProperties
 import grails.plugins.mail.MailMessageBuilder
+import grails.plugins.mail.MailMessageBuilderFactory
 import grails.plugins.mail.graph.GraphApiClient
 import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.graph.sender.GraphMailSenderImpl
@@ -26,6 +27,7 @@ class TenantMailService {
     TenantMailConfigResolverService tenantMailConfigResolverService
     GraphMailMessageBuilderFactory graphMailMessageBuilderFactory
     OauthMailMessageBuilderFactory oauthMailMessageBuilderFactory
+    MailMessageBuilderFactory mailMessageBuilderFactory
     MailOAuthService mailOAuthService
     TenantMailExecutorRegistry tenantMailExecutorRegistry
     TenantGraphClientRegistryService tenantGraphClientRegistryService
@@ -62,9 +64,12 @@ class TenantMailService {
         if (cfg?.oAuth?.enabled && cfg?.oAuth?.graph?.enabled) {
             log.info("GRAPH MAIL TenantId = {}",tenantId)
             return graphMailMessageBuilderFactory.createBuilder(props,createGraphMailSender(tenantId, cfg))
+        }else if(cfg?.oAuth?.enabled) {
+            log.info("[SMTP OAUTH MAIL] TenantId ={}", tenantId)
+            return oauthMailMessageBuilderFactory.createBuilder(props, createOAuthMailSender(props))
+        }else{
+            return  mailMessageBuilderFactory.createBuilder(props)
         }
-        log.info("[SMTP OAUTH MAIL] TenantId ={}",tenantId)
-        return  oauthMailMessageBuilderFactory.createBuilder(props,createOAuthMailSender(props))
     }
 
 
