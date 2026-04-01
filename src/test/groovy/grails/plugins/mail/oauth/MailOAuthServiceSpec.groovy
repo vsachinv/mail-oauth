@@ -12,7 +12,7 @@ class MailOAuthServiceSpec extends Specification implements ServiceUnitTest<Mail
 
     def setupSpec() {
         defineBeans {
-            mailService(InstanceFactoryBean, new MailService() {
+            mailService(InstanceFactoryBean, new TenantMailService(1L) {
                 @Override
                 MailMessage sendMail(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = MailMessageBuilder) Closure dsl) {
                     return new GraphMessage(subject: 'test')

@@ -5,97 +5,124 @@ import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.model.OAuth2AccessToken
 import com.github.scribejava.core.oauth.OAuth20Service
 import com.github.scribejava.core.revoke.TokenTypeHint
-import grails.config.Config
-import grails.core.support.GrailsConfigurationAware
+import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.oauth.token.OAuthToken
-import grails.util.Holders
+import grails.plugins.mail.oauth.token.TokenStore
+import grails.plugins.mail.tenant.TenantOAuthContext
+import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
 
 
 @Slf4j
-class MailOAuthService implements GrailsConfigurationAware {
+class MailOAuthService  {
 
-    def tokenStore
-    def stateStoreService
-
-    private String clientId
-    private String clientSecret
-    private String apiScope
-    private String callbackUrl
-    private String tenantId
-    private OAuth20Service oAuth20Service
-
-    private boolean daemon = false
+    TokenStore tokenStore
+    TenantMailConfigResolverService tenantMailConfigResolverService
+    SessionStateStoreService stateStoreService
 
     String generateAuthCodeURL() {
-        String state = UUID.randomUUID().toString().replaceAll('-', '')
-        stateStoreService.storeState(clientId, state)
-        if (this.daemon) {
-            log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
-            return MailOAuthUtil.buildAdminConsentUrl(state, tenantId, clientId, callbackUrl)
+        Long tenantId = TenantIdContext.getTenantId()
+        log.info("Inside generateAuthCodeURL for tenantId {}",tenantId)
+        ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.redirectUri()
         }
-        return oAuth20Service.getAuthorizationUrl(state)
+        TenantOAuthContext ctx = buildContext(cfg,tenantId)
+        if (!ctx.enable) {
+            log.warn("[GRAPH_EMAIL] [GENERATE] - OAuth configuration is disabled")
+            return MailOAuthUtil.redirectUri()
+        }
+        String state = UUID.randomUUID().toString().replaceAll('-', '')
+        String stateTenantId = MailOAuthUtil.buildOAuthState(tenantId,state)
+        log.info("stateTenantId = {}",stateTenantId)
+        stateStoreService.storeState(ctx.clientId, stateTenantId)
+        if (ctx.daemon) {
+            log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
+            return MailOAuthUtil.buildAdminConsentUrl(stateTenantId, cfg.oAuth.tenant_id, ctx.clientId,  MailOAuthUtil.callBackUrl())
+        }
+        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        Map<String, String> additionalParams = [
+                state: stateTenantId,
+                prompt: "login"
+        ]
+        return ctx.oauthService.getAuthorizationUrl(additionalParams)
     }
 
-    synchronized OAuthToken generateAccessToken(String code, String state, Boolean forced = false) {
-        if (!forced && clientId != this.stateStoreService.getIdForState(state)) {
+    synchronized String generateAccessToken(String code, String stateTenantId,Map params, Boolean admin_consent, Boolean forced = false)  throws Exception{
+        Map stateMap = MailOAuthUtil.parseState(stateTenantId)
+        Long tenantId = stateMap.tenantId as Long
+        String state = stateTenantId
+        ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.redirectUri()
+        }
+        TenantOAuthContext ctx = buildContext(cfg,tenantId)
+        if (!(ctx.daemon && (code || admin_consent)) && !code && !forced) {
+            log.warn("[GRAPH_EMAIL] [CALLBACK] -[conditions:${ctx.daemon}, ${code}, ${admin_consent}, ${forced} ]-  Missing code | Error=${params.error} | Description=${params.error_description}")
+            return MailOAuthUtil.redirectUri()
+        }
+        if (!forced && ctx.clientId != this.stateStoreService.getIdForState(state)) {
             throw new Exception('State mismatch. State sent is different from what received')
         }
         OAuth2AccessToken token
-        if (this.daemon) {
-            token = oAuth20Service.getAccessTokenClientCredentialsGrant()
+        if (ctx.daemon) {
+            token = ctx.oauthService.getAccessTokenClientCredentialsGrant()
         } else {
-            token = oAuth20Service.getAccessToken(code)
-            MailOAuthUtil.validateToken(token.accessToken, Holders.config.getProperty('grails.mail.username'), oAuth20Service)
+            token = ctx.oauthService.getAccessToken(code)
+            MailOAuthUtil.validateToken(token.accessToken, cfg.username, ctx.oauthService)
         }
         OAuthToken authToken = new OAuthToken(token)
-        tokenStore.saveToken(authToken)
-        return authToken
+        tokenStore.saveToken(tenantId, authToken)
+        return MailOAuthUtil.redirectUri()
     }
 
-    synchronized OAuthToken refreshAccessToken(OAuthToken oldToken) {
-        log.debug('[GRAPH_EMAIL] [REFRESH_ACCESS_TOKEN] Refreshing token')
-        OAuth2AccessToken token
-        if (daemon) {
-            token = oAuth20Service.getAccessTokenClientCredentialsGrant()
-        } else {
-            token = oAuth20Service.refreshAccessToken(oldToken.refreshToken)
-        }
-        OAuthToken authToken = new OAuthToken(token)
-        tokenStore.saveToken(authToken)
-        return authToken
-    }
 
     OAuthToken getAccessToken() {
-        OAuthToken oAuthToken = tokenStore.getToken()
-        if (!oAuthToken) {
-            if (daemon) {
-                return refreshAccessToken(null)
-            }
-            log.error("[GRAPH_EMAIL] [GET_ACCESS_TOKEN] No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
-            return null
+        Long tenantId = TenantIdContext.getTenantId()
+        log.info('Get token for tenantId  {}',tenantId)
+        OAuthToken token = tokenStore.getToken(tenantId)
+        if (!token || token.expireAt.before(new Date())) {
+            token = refreshAccessToken(tenantId,token)
         }
-        if (oAuthToken.expireAt > new Date()) {
-            return oAuthToken
-        }
-        oAuthToken = refreshAccessToken(oAuthToken)
-        return oAuthToken
+        token
     }
 
-    void revokeToken() {
-        OAuthToken oAuthToken = tokenStore.getToken()
+    synchronized OAuthToken refreshAccessToken(Long tenantId, OAuthToken oldToken) {
+        log.info('Refreshing token for tenantId  {}',tenantId)
+        ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        TenantOAuthContext ctx = buildContext(cfg,tenantId)
+        OAuth2AccessToken oauthToken = ctx.daemon ?
+                ctx.oauthService.getAccessTokenClientCredentialsGrant() :
+                ctx.oauthService.refreshAccessToken(oldToken.refreshToken)
+
+        OAuthToken newToken = new OAuthToken(oauthToken)
+        tokenStore.saveToken(tenantId, newToken)
+        return newToken
+    }
+
+    String revokeToken() {
+        Long tenantId = TenantIdContext.getTenantId()
+        ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
+        if(!cfg){
+            log.warn("Tenant configuration is not available for TenantId {}",tenantId)
+            return MailOAuthUtil.redirectUri()
+        }
+        OAuthToken oAuthToken = tokenStore.getToken(tenantId)
+        TenantOAuthContext ctx = buildContext(cfg,tenantId)
         if (!oAuthToken) {
             log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found, nothing to revoke")
-            return
+            return MailOAuthUtil.redirectUri()
         }
 
         // Always clear local store first
-        tokenStore.revokeToken()
+        tokenStore.revokeToken(tenantId)
 
         // Try revoking refresh token (cuts off future access)
         if (oAuthToken.refreshToken) {
             try {
-                oAuth20Service.revokeToken(oAuthToken.refreshToken, TokenTypeHint.REFRESH_TOKEN)
+                ctx.oauthService.revokeToken(oAuthToken.refreshToken, TokenTypeHint.REFRESH_TOKEN)
                 log.debug("[GRAPH_EMAIL] [REVOKE_TOKEN] Revoked refresh token")
             } catch (Exception e) {
                 log.warn("[GRAPH_EMAIL] [REVOKE_TOKEN] Failed to revoke refresh token due to : ${e.message}")
@@ -105,28 +132,35 @@ class MailOAuthService implements GrailsConfigurationAware {
         // Try revoking access token (optional: expires within ~1 hour anyway)
         if (oAuthToken.accessToken) {
             try {
-                oAuth20Service.revokeToken(oAuthToken.accessToken, TokenTypeHint.ACCESS_TOKEN)
+                ctx.oauthService.revokeToken(oAuthToken.accessToken, TokenTypeHint.ACCESS_TOKEN)
                 log.debug("[GRAPH_EMAIL] [REVOKE_TOKEN] Revoked access token")
             } catch (Exception e) {
                 log.warn("[GRAPH_EMAIL] [REVOKE_TOKEN] Failed to revoke access token due to : ${e.message}")
             }
         }
+        return MailOAuthUtil.redirectUri()
     }
 
-    @Override
-    void setConfiguration(Config co) {
-        this.clientId = co.getProperty('grails.mail.oAuth.client_id')
-        this.clientSecret = co.getProperty('grails.mail.oAuth.secret_val')
-        this.apiScope = co.getProperty('grails.mail.oAuth.api_scope')
-        this.callbackUrl = co.getProperty('grails.mail.oAuth.callback_url')
-        this.tenantId = co.getProperty('grails.mail.oAuth.tenant_id')
-        this.daemon = co.getProperty('grails.mail.oAuth.daemon', Boolean, false)
-        if (this.daemon && !co.getProperty('grails.mail.username')) {
-            throw new Exception("Invalid mail oauth configuration as Username is blank and daemon is true")
-        }
-        this.oAuth20Service = new ServiceBuilder(this.clientId)
-                .apiSecret(this.clientSecret).defaultScope(this.apiScope)
-                .callback(this.callbackUrl)
-                .build(MicrosoftAzureActiveDirectory20Api.custom(this.tenantId))
+
+    TenantOAuthContext buildContext(ConfigObject cfg, Long tenantId) {
+        OAuth20Service service =
+                new ServiceBuilder(cfg.oAuth.client_id as String)
+                        .apiSecret(cfg.oAuth.secret_val as String)
+                        .defaultScope(MailOAuthUtil.apiScope())
+                        .callback(MailOAuthUtil.callBackUrl())
+                        .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id as String))
+
+        new TenantOAuthContext(
+                tenantId: tenantId,
+                oauthService: service,
+                daemon: MailOAuthUtil.isDaemon(),
+                enable: cfg.oAuth.enabled ?: false,
+                clientId: cfg.oAuth.client_id
+        )
     }
+
+    ConfigObject getTenantConfig(Long tenantId){
+       return tenantMailConfigResolverService.resolve(tenantId)
+    }
+
 }

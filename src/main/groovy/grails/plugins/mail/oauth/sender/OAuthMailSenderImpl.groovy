@@ -12,12 +12,11 @@ import javax.mail.Session
 class OAuthMailSenderImpl extends JavaMailSenderImpl {
 
     MailOAuthService mailOAuthService
-
     OAuthMailSenderImpl() {
     }
 
-    OAuthMailSenderImpl(Session mailSession,
-                        MailConfigurationProperties mailProperties) {
+    OAuthMailSenderImpl(MailConfigurationProperties mailProperties,MailOAuthService mailOAuthService) {
+        this.mailOAuthService = mailOAuthService
         if (mailProperties.host) {
             this.host = mailProperties.host
         } else if (!mailProperties.jndiName) {
@@ -52,9 +51,7 @@ class OAuthMailSenderImpl extends JavaMailSenderImpl {
         }
         this.javaMailProperties.setProperty('mail.smtp.auth', 'true')
         this.javaMailProperties.setProperty('mail.smtp.auth.mechanisms', 'XOAUTH2')
-        if (mailSession != null) {
-            this.session = mailSession
-        }
+        this.session =  Session.getInstance(javaMailProperties)
     }
 
     @Override

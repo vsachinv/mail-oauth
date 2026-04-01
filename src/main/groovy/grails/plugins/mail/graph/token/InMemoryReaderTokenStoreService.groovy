@@ -24,11 +24,11 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
 
     @Override
     OAuthToken getTokenFor(GraphConfig graphConfig) {
-        OAuthToken oAuthToken = this.store.get(graphConfig.configName)?.token
+        OAuthToken oAuthToken = this.store.get(graphConfig.configName)?.getToken(graphConfig.tenantId)
         if (!oAuthToken) {
             if (graphConfig.daemon) {
                 refreshTokenFor(graphConfig)
-                return this.store.get(graphConfig.configName).token
+                return this.store.get(graphConfig.configName).getToken(graphConfig.tenantId)
             }
             log.error("No Access token generated for $graphConfig.configName. Please generate")
             return null
@@ -37,7 +37,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
             return oAuthToken
         }
         refreshTokenFor(graphConfig)
-        return this.store.get(graphConfig.configName)?.token
+        return this.store.get(graphConfig.configName)?.getToken(graphConfig.getTenantId())
     }
 
     @Override
@@ -50,10 +50,10 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
             }
             token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
         } else {
-            token = getAuthService(graphConfig).refreshAccessToken(tokenStore.token.refreshToken)
+            token = getAuthService(graphConfig).refreshAccessToken(tokenStore.getToken(graphConfig.tenantId).refreshToken)
         }
         OAuthToken authToken = new OAuthToken(token)
-        tokenStore.saveToken(authToken)
+        tokenStore.saveToken(graphConfig.tenantId,authToken)
     }
 
     @Override
@@ -62,7 +62,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         configStore.put(state, graphConfig)
         log.debug("Generated Auth URL for ${graphConfig.configName} with state ${state} ")
         if (graphConfig.daemon) {
-            return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.tenantId, graphConfig.clientId, graphConfig.callbackUrl)
+            return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.graphTenantId, graphConfig.clientId, graphConfig.callbackUrl)
         }
         return getAuthService(graphConfig).getAuthorizationUrl(state)
     }
@@ -83,7 +83,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
                 MailOAuthUtil.validateToken(token.accessToken, graphConfig.emailAddress, getAuthService(graphConfig))
         }
         OAuthToken authToken = new OAuthToken(token)
-        tokenStore.saveToken(authToken)
+        tokenStore.saveToken(graphConfig.tenantId,authToken)
         this.store.put(graphConfig.configName, tokenStore)
         return authToken
     }
@@ -91,13 +91,13 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     @Override
     void revokeTokenFor(GraphConfig graphConfig) {
         MemoryTokenStore tokenStore = this.store.get(graphConfig.configName)
-        OAuthToken oAuthToken = tokenStore.getToken()
+        OAuthToken oAuthToken = tokenStore.getToken(graphConfig.tenantId)
         if (!oAuthToken) {
             log.info("[GRAPH_EMAIL] [REVOKE_TOKEN] No token found for ${graphConfig.configName}")
             return
         }
         // clear locally stored token
-        tokenStore.revokeToken()
+        tokenStore.revokeToken(graphConfig.tenantId)
 
         OAuth20Service authService = getAuthService(graphConfig)
 
@@ -126,6 +126,6 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         new ServiceBuilder(graphConfig.clientId)
                 .apiSecret(graphConfig.secretId).defaultScope(graphConfig.scopes)
                 .callback(graphConfig.callbackUrl)
-                .build(MicrosoftAzureActiveDirectory20Api.custom(graphConfig.tenantId))
+                .build(MicrosoftAzureActiveDirectory20Api.custom(graphConfig.graphTenantId))
     }
 }

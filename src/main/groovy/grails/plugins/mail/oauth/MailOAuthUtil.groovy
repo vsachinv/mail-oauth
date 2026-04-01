@@ -4,6 +4,7 @@ import com.github.scribejava.core.model.OAuthRequest
 import com.github.scribejava.core.model.Response
 import com.github.scribejava.core.model.Verb
 import com.github.scribejava.core.oauth.OAuth20Service
+import grails.util.Holders
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
@@ -14,11 +15,47 @@ import java.nio.charset.StandardCharsets
 class MailOAuthUtil {
 
     private static final String GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me"
+    static final String TENANT_PREFIX = "tenant_"
+    static final String TENANT_ID_LOG_VAR_NAME = "tenantId"
+    static String redirectUri() {
+        Holders.config.getProperty('grails.mail.oAuth.redirect.uri', String)
+    }
+
+    static String callBackUrl() {
+        Holders.config.getProperty('grails.mail.oAuth.callback_url', String)
+    }
+
+    static String apiScope() {
+        Holders.config.getProperty('grails.mail.oAuth.api_scope', String)
+    }
+
+    static Boolean isDebug() {
+        Holders.config.getProperty('grails.mail.oAuth.debug', Boolean, false)
+    }
+
+    static Boolean isDaemon() {
+        Holders.config.getProperty('grails.mail.oAuth.daemon', Boolean, false)
+    }
+    static Long connectionTimeOut() {
+        Holders.config.getProperty('grails.mail.oAuth.graph.http.connectTimeout', Long, 30L)
+    }
+
+    static Long writeTimeOut() {
+        Holders.config.getProperty('grails.mail.oAuth.graph.http.writeTimeout', Long, 600L)
+    }
+
+    static Long readTimeOut() {
+        Holders.config.getProperty('grails.mail.oAuth.graph.http.readTimeout', Long, 600L)
+    }
+
+    static Integer attachmentMax() {
+        Holders.config.getProperty('grails.mail.oAuth.graph.attachmentMax', Integer, 3)
+    }
 
     // TODO need to find solution to handle using API rather hard coded string GRAPH_ME_URL.
     @CompileDynamic
-    public static void validateToken(String accessToken, String username, OAuth20Service oAuth20Service) {
-        OAuthRequest request = new OAuthRequest(Verb.GET, GRAPH_ME_URL);
+    static void validateToken(String accessToken, String username, OAuth20Service oAuth20Service) {
+        OAuthRequest request = new OAuthRequest(Verb.GET, GRAPH_ME_URL)
         oAuth20Service.signRequest(accessToken, request)
         Response response = oAuth20Service.execute(request)
         if (response.getCode() != 200) {
@@ -31,7 +68,7 @@ class MailOAuthUtil {
         }
     }
 
-    public static String buildAdminConsentUrl(String state, String tenantId, String clientId, String redirectURL) {
+    static String buildAdminConsentUrl(String state, String tenantId, String clientId, String redirectURL) {
         return String.format("https://login.microsoftonline.com/%s/adminconsent" + "?client_id=%s" + "&state=%s" + "&redirect_uri=%s",
                 tenantId,
                 urlEncode(clientId),
@@ -40,6 +77,30 @@ class MailOAuthUtil {
     }
 
     private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
     }
+
+    static String buildOAuthState(Long tenantId, String state) {
+        String raw = "tenantId=${tenantId}|state=\"${state}\""
+        return URLEncoder.encode(raw, StandardCharsets.UTF_8)
+    }
+
+    static Map<String, String> parseState(String stateParam) {
+        if (!stateParam) {
+            return [:]
+        }
+        // If URL-encoded, decode first
+        String decoded = URLDecoder.decode(stateParam, StandardCharsets.UTF_8)
+        Map<String, String> result = [:]
+        decoded.split("\\|").each { part ->
+            String[] kv = part.split("=", 2)
+            if (kv.length == 2) {
+                String key = kv[0]
+                String value = kv[1].replaceAll('^"|"$', '')
+                result.put(key, value)
+            }
+        }
+        return result
+    }
+
 }

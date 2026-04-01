@@ -46,12 +46,13 @@ class GraphApiClient {
         this.graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
     }
 
-    public GraphServiceClient getStandardMailClient() {
+    GraphServiceClient getStandardMailClient() {
         return this.graphServiceClient
     }
 
     GraphServiceClient getClientFor(GraphConfig graphConfig, boolean reset = false) {
-        if (!cache.get(graphConfig.configName) || reset) {
+        String key = "${graphConfig.tenantId}-${graphConfig.configName}"
+        if (!cache.get(key) || reset) {
             AuthenticationProvider authenticationProvider = new AzureIdentityAuthenticationProvider(new AdhocTokenCredential(graphConfig: graphConfig), new String[]{}, graphConfig.scopes.split(" "))
             OkHttpClient.Builder httpClientBuilder = GraphClientFactory.create(GraphServiceClient.graphClientOptions)
                     .connectTimeout(this.connectTimeout, TimeUnit.SECONDS)   // connection timeout
@@ -59,15 +60,15 @@ class GraphApiClient {
                     .readTimeout(this.readTimeout, TimeUnit.SECONDS)     // read timeout per chunk
 
             if (graphConfig.debug) {
-                httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(graphConfig.configName))
+                httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(key))
             }
             GraphServiceClient graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
-            cache.put(graphConfig.configName, graphServiceClient)
+            cache.put(key, graphServiceClient)
         }
-        return cache.get(graphConfig.configName)
+        return cache.get(key)
     }
 
-    public clearCache() {
+    void clearCache() {
         cache.clear()
     }
 

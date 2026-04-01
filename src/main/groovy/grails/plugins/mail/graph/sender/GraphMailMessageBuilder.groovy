@@ -15,7 +15,6 @@ import grails.plugins.mail.MailMessageBuilder
 import grails.plugins.mail.MailMessageContentRenderer
 import grails.plugins.mail.graph.GraphMessage
 import grails.web.mime.MimeType
-import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.apache.commons.io.FilenameUtils
@@ -32,6 +31,7 @@ import java.util.concurrent.ExecutorService
 @CompileStatic
 class GraphMailMessageBuilder extends MailMessageBuilder {
 
+    public Long tenantId
     public List<Recipient> bccRecipients = []
     public ItemBody body = null
     public String bodyPreview
@@ -331,6 +331,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
         }
         message
     }
+
 
     @Override
     GraphMessage finishMessage() {

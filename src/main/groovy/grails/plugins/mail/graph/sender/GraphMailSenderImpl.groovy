@@ -13,6 +13,7 @@ import com.microsoft.kiota.serialization.ParsableFactory
 import com.microsoft.kiota.serialization.ParseNode
 import grails.plugins.mail.GrailsMailException
 import grails.plugins.mail.graph.GraphApiClient
+import grails.plugins.mail.oauth.MailOAuthService
 import grails.plugins.mail.oauth.sender.OAuthMailSenderImpl
 import grails.util.Holders
 import groovy.transform.CompileDynamic
@@ -24,16 +25,22 @@ import org.springframework.mail.MailException
 import org.springframework.mail.MailSendException
 import javax.mail.AuthenticationFailedException
 import javax.mail.internet.MimeMessage
-import java.time.Clock
-import java.time.OffsetDateTime
+
 
 @Slf4j
 @CompileStatic
 class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     GraphApiClient graphApiClient
-    int maxAttachmentSizeInMB = 3
-    boolean daemon = false
+    Integer maxAttachmentSizeInMB = 3
+    Boolean daemon = false
+
+    GraphMailSenderImpl(MailOAuthService mailOAuthService,GraphApiClient graphApiClient, Integer maxAttachmentSizeInMB, Boolean daemon){
+        this.mailOAuthService  = mailOAuthService
+        this.graphApiClient = graphApiClient
+        this.maxAttachmentSizeInMB = maxAttachmentSizeInMB
+        this.daemon = daemon
+    }
 
     @Override
     protected void doSend(MimeMessage[] mimeMessages, Object[] originalMessages) throws MailException {
@@ -43,7 +50,7 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
 
     void sendMailViaGraph(Message message, List<FileAttachment> attachmentList) throws MailException {
         Map<Object, Exception> failedMessages = new LinkedHashMap<Object, Exception>()
-        boolean connectionStatus = !!mailOAuthService.accessToken
+        boolean connectionStatus = !!mailOAuthService.getAccessToken()
         try {
             if (!connectionStatus) {
                 throw new MailAuthenticationException(new AuthenticationFailedException())
@@ -134,13 +141,15 @@ class GraphMailSenderImpl extends OAuthMailSenderImpl {
     }
 
     @CompileDynamic
-    public void testConnection() throws ApiException {
+    void testConnection(Long tenantId) throws ApiException {
         if (Holders.config.getProperty('grails.mail.oAuth.health.check.disabled', Boolean)) {
             log.warn("[GRAPH_EMAIL] [HEALTH_CHECK] Disabled via config.")
             return
         }
         log.debug("[GRAPH_EMAIL] [HEALTH_CHECK] Testing connection with current access token.")
-        mailOAuthService.refreshAccessToken(mailOAuthService.tokenStore.getToken())
+        mailOAuthService.refreshAccessToken(tenantId,mailOAuthService.tokenStore.getToken(tenantId))
         log.info("[GRAPH_EMAIL] [HEALTH_CHECK] Token refresh successful.")
     }
+
+
 }
