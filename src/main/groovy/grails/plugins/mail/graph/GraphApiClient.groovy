@@ -61,6 +61,9 @@ class GraphApiClient {
             if (graphConfig.debug) {
                 httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(graphConfig.configName))
             }
+            if (graphConfig.preferImmutableId) {
+                httpClientBuilder = httpClientBuilder.addInterceptor(new ImmutableIdHeaderInterceptor())
+            }
             GraphServiceClient graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
             cache.put(graphConfig.configName, graphServiceClient)
         }

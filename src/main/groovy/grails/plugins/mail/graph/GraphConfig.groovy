@@ -18,4 +18,5 @@ class GraphConfig implements Serializable {
     boolean isShared = false
     boolean daemon = false
     boolean debug = false
+    boolean preferImmutableId = false
 }
