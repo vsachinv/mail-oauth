@@ -63,7 +63,7 @@ class MailOAuthController {
 
     def callback(String code, String state,Boolean admin_consent, Boolean forced) {
         log.debug("[GRAPH_EMAIL] [CALLBACK] - Received OAuth callback | Code=${code} | State=${state} | forced=${forced} | admin_consent=${admin_consent}")
-        String redirectUri
+        String redirectUri = MailOAuthUtil.redirectUri()
         try{
             redirectUri = mailOAuthService.generateAccessToken(code, state,params,admin_consent,forced)
             flash.message = "Successfully generated access token"
