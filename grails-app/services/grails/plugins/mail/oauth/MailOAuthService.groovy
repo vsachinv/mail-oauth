@@ -34,7 +34,12 @@ class MailOAuthService implements GrailsConfigurationAware {
             log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
             return MailOAuthUtil.buildAdminConsentUrl(state, tenantId, clientId, callbackUrl)
         }
-        return oAuth20Service.getAuthorizationUrl(state)
+        log.debug("[GRAPH_EMAIL] [GENERATE] - Requested new AuthToken | Redirecting to Auth URL")
+        Map<String, String> additionalParams = [
+                state: state,
+                prompt: "login"
+        ]
+        return ctx.oauthService.getAuthorizationUrl(additionalParams)
     }
 
     synchronized OAuthToken generateAccessToken(String code, String state, Boolean forced = false) {
