@@ -39,7 +39,7 @@ class MailOAuthService implements GrailsConfigurationAware {
                 state: state,
                 prompt: "login"
         ]
-        return ctx.oauthService.getAuthorizationUrl(additionalParams)
+        return oAuth20Service.getAuthorizationUrl(additionalParams)
     }
 
     synchronized OAuthToken generateAccessToken(String code, String state, Boolean forced = false) {
