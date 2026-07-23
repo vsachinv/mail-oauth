@@ -11,7 +11,11 @@ public class TenantIdContext {
     private static final ThreadLocal<Long> contextHolder = new ThreadLocal<>()
 
     static void setTenantId(Long tenantId) {
-        MDC.put(MailOAuthUtil.TENANT_ID_LOG_VAR_NAME, tenantId.toString())
+        if (tenantId != null) {
+            MDC.put(MailOAuthUtil.TENANT_ID_LOG_VAR_NAME, tenantId.toString())
+        } else {
+            MDC.remove(MailOAuthUtil.TENANT_ID_LOG_VAR_NAME)
+        }
         contextHolder.set(tenantId)
     }
 

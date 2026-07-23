@@ -9,6 +9,7 @@ import grails.plugins.mail.graph.sender.GraphMailMessageBuilderFactory
 import grails.plugins.mail.oauth.sender.OauthMailMessageBuilderFactory
 import grails.plugins.mail.tenant.TenantMailExecutorRegistry
 import grails.plugins.tenant.TenantContextProvider
+import grails.plugins.tenant.TenantIdContext
 import grails.testing.services.ServiceUnitTest
 import org.springframework.mail.MailMessage
 import org.springframework.mail.MailSendException
@@ -60,6 +61,10 @@ class TenantMailServiceSpec extends Specification implements ServiceUnitTest<Ten
         cfg.oAuth.enabled = oauthEnabled
         cfg.oAuth.graph.enabled = graphEnabled
         cfg
+    }
+
+    def cleanup() {
+        TenantIdContext.clear()
     }
 
     private sendSample() {
@@ -151,6 +156,26 @@ class TenantMailServiceSpec extends Specification implements ServiceUnitTest<Ten
         0 * oauthFactory._
         0 * plainFactory._
         0 * builder.sendMessage(_)
+    }
+
+    void "sendMail restores the caller thread's previous tenant id after dispatch (no bleed)"() {
+        given:
+        Long tenantId = 7L
+        TenantIdContext.clear()   // caller thread starts with no tenant
+
+        when:
+        sendSample()
+
+        then:
+        1 * tenantContext.getCurrentTenantId() >> tenantId
+        _ * configResolver.resolve(tenantId) >> config(true, true)
+        1 * graphClientRegistry.getClient(tenantId, _) >> Mock(GraphApiClient)
+        1 * graphFactory.createBuilder(_, _) >> builder
+        1 * executorRegistry.executorFor(tenantId, _) >> executor
+        1 * builder.sendMessage(executor) >> new GraphMessage(subject: 't')
+
+        and: "the thread-local is not left holding the tenant id"
+        TenantIdContext.getTenantId() == null
     }
 
     void "sendMail propagates a MailSendException raised while dispatching the message"() {

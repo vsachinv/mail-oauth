@@ -28,6 +28,22 @@ class TenantAwareExecutorService implements  ExecutorService{
         } as Runnable
     }
 
+    private <T> Callable<T> wrap(Callable<T> task) {
+        Long tenantId = TenantIdContext.getTenantId()
+        return {
+            try {
+                TenantIdContext.setTenantId(tenantId)
+                return task.call()
+            } finally {
+                TenantIdContext.clear()
+            }
+        } as Callable<T>
+    }
+
+    private <T> Collection<? extends Callable<T>> wrapAll(Collection<? extends Callable<T>> tasks) {
+        tasks.collect { wrap(it) }
+    }
+
     @Override
     void execute(Runnable command) {
         delegate.execute(wrap(command))
@@ -38,11 +54,11 @@ class TenantAwareExecutorService implements  ExecutorService{
     @Override boolean isShutdown() { delegate.isShutdown() }
     @Override boolean isTerminated() { delegate.isTerminated() }
     @Override boolean awaitTermination(long timeout, TimeUnit unit) { delegate.awaitTermination(timeout, unit) }
-    @Override <T> Future<T> submit(Callable<T> task) { delegate.submit(task) }
+    @Override <T> Future<T> submit(Callable<T> task) { delegate.submit(wrap(task)) }
     @Override <T> Future<T> submit(Runnable task, T result) { delegate.submit(wrap(task), result) }
     @Override Future<?> submit(Runnable task) { delegate.submit(wrap(task)) }
-    @Override <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) { delegate.invokeAll(tasks) }
-    @Override <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) { delegate.invokeAll(tasks, timeout, unit) }
-    @Override <T> T invokeAny(Collection<? extends Callable<T>> tasks) { delegate.invokeAny(tasks) }
-    @Override <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) { delegate.invokeAny(tasks, timeout, unit) }
+    @Override <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) { delegate.invokeAll(wrapAll(tasks)) }
+    @Override <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) { delegate.invokeAll(wrapAll(tasks), timeout, unit) }
+    @Override <T> T invokeAny(Collection<? extends Callable<T>> tasks) { delegate.invokeAny(wrapAll(tasks)) }
+    @Override <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) { delegate.invokeAny(wrapAll(tasks), timeout, unit) }
 }
