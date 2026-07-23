@@ -161,6 +161,8 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 
 The plugin is multi-tenant end to end: a single application instance can send and read mail for many tenants, each with its own Microsoft Entra ID application, credentials, mailbox, and OAuth tokens. Every send, token operation, and reader call is scoped by a **tenant id**.
 
+> 📘 For the full component breakdown, diagrams, token lifecycle, and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
+
 > ⚠️ **Two different "tenants" — don't confuse them:**
 > - **Application tenant id** — a `Long` that identifies *your* tenant (organization/customer) within the host application. This is what the plugin partitions everything by.
 > - **`grails.mail.oAuth.tenant_id`** — the *Microsoft Entra ID (Azure AD)* directory id (or `common`) used when talking to Microsoft. It is one property *inside* a tenant's mail config.
