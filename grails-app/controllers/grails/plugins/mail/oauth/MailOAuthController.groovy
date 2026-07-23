@@ -5,8 +5,8 @@ import grails.plugins.tenant.TenantIdContext
 import groovy.util.logging.Slf4j
 import org.springframework.mail.MailAuthenticationException
 
-import javax.mail.internet.AddressException
-import javax.mail.internet.InternetAddress
+import jakarta.mail.internet.AddressException
+import jakarta.mail.internet.InternetAddress
 import com.github.scribejava.core.model.OAuth2AccessTokenErrorResponse
 
 @Slf4j

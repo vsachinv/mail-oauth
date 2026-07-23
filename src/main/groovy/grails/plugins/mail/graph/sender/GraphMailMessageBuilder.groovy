@@ -415,7 +415,7 @@ class GraphMailMessageBuilder extends MailMessageBuilder {
     }
 
     @Override
-    protected doAdd(String id, String contentType, InputStreamSource toAdd, boolean isAttachment) {
+    protected void doAdd(String id, String contentType, InputStreamSource toAdd, boolean isAttachment) {
         this.hasAttachments = true
         FileAttachment attachment = new FileAttachment(name: id, contentType: contentType, contentBytes: StreamUtils.copyToByteArray(toAdd.inputStream), isInline: false)
         this.attachmentList.add(attachment)

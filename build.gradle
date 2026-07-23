@@ -1,67 +1,83 @@
-plugins {
-    id "com.gorylenko.gradle-git-properties"
-    id "io.spring.dependency-management"
-    id "org.grails.grails-plugin"
-    id "com.bertramlabs.asset-pipeline"
-    id "idea"
-    id "eclipse"
-    id "maven-publish"
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = 'https://repo.grails.org/grails/restricted' }
+    }
+    dependencies {
+        classpath platform("org.apache.grails:grails-bom:$grailsVersion")
+        classpath "org.apache.grails:grails-gradle-plugins"
+        classpath "com.gorylenko.gradle-git-properties:gradle-git-properties:4.0.1"
+        classpath "cloud.wondrify:asset-pipeline-gradle:5.0.34"
+    }
 }
+
+apply plugin: "eclipse"
+apply plugin: "idea"
+apply plugin: "org.apache.grails.gradle.grails-plugin"
+apply plugin: "maven-publish"
+apply plugin: "com.gorylenko.gradle-git-properties"
+apply plugin: "cloud.wondrify.asset-pipeline"
 
 group "org.grails.plugins"
-
-ext {
-    grailsVersion = project.grailsVersion
-}
 
 repositories {
     mavenLocal()
     mavenCentral()
-    maven { url "https://repo.grails.org/grails/core" }
-    maven { url "https://repo1.maven.org/maven2" }
-}
-
-configurations {
-    all {
-        resolutionStrategy.eachDependency { DependencyResolveDetails details->
-            if (details.requested.group == 'org.seleniumhq.selenium') {
-                details.useVersion('4.19.1')
-            }
-        }
-    }
+    maven { url = 'https://repo.grails.org/grails/restricted' }
+    maven { url = "https://repo1.maven.org/maven2" }
 }
 
 dependencies {
+    console "org.apache.grails:grails-console"
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    implementation 'org.springframework.boot:spring-boot-starter-logging'
+
+    implementation platform("org.apache.grails:grails-bom:$grailsVersion")
+    implementation "org.springframework.boot:spring-boot-starter-logging"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     implementation "org.springframework.boot:spring-boot-autoconfigure"
     implementation "org.springframework.boot:spring-boot-starter-tomcat"
-    implementation "org.grails:grails-web-boot"
-    implementation "org.grails:grails-dependencies"
-    implementation 'javax.servlet:javax.servlet-api:4.0.1'
-    implementation "commons-io:commons-io:2.16.1"
-    runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:4.3.0"
-    testImplementation "org.grails:grails-gorm-testing-support"
-    testImplementation "org.mockito:mockito-core"
-    testImplementation "org.grails:grails-web-testing-support"
-    console "org.grails:grails-console"
-    implementation 'org.grails.plugins:mail:4.0.0'
+    implementation "org.apache.grails:grails-web-boot"
+    implementation "org.apache.grails:grails-core"
+    implementation "org.apache.grails:grails-controllers"
+    implementation "org.apache.grails:grails-gsp"
+    implementation "org.apache.grails.views:grails-web-gsp"
+    implementation "org.apache.grails.views:grails-web-gsp-taglib"
+    compileOnly "jakarta.servlet:jakarta.servlet-api"
+    profile "org.apache.grails.profiles:plugin"
+
+    // Mail (Grails 7 / jakarta.mail) + Microsoft OAuth + Graph
+    implementation 'org.grails.plugins:grails-mail:5.0.3'
+    implementation "commons-io:commons-io:2.19.0"
     implementation 'com.github.scribejava:scribejava-core:8.3.3'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'
-    implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.6.6'
+    implementation 'io.projectreactor:reactor-core:3.8.6'
     implementation 'com.microsoft.graph:microsoft-graph:6.+'
     implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+
+    assets "org.apache.grails:grails-dependencies-assets"
+
+    runtimeOnly "com.h2database:h2"
+    testImplementation "org.apache.grails.testing:grails-testing-support-core"
+    testImplementation "org.apache.grails:grails-testing-support-web"
+    testImplementation "org.spockframework:spock-core"
+    testImplementation "org.mockito:mockito-core"
+    // Spock mock engine for concrete classes — transitive in Grails 6, explicit in 7
+    testImplementation "net.bytebuddy:byte-buddy"
+    testRuntimeOnly "net.bytebuddy:byte-buddy-agent"
 }
 
 task sourceJar(type: Jar) {
-    classifier = 'sources'
+    dependsOn generateGitProperties
+    archiveClassifier = 'sources'
     from sourceSets.main.allSource
 }
 
-java {
-    sourceCompatibility = JavaVersion.toVersion("11")
-    targetCompatibility = JavaVersion.toVersion("11")
+compileJava.options.release = 17
+
+// https://github.com/apache/grails-core/issues/15321
+tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.optimizationOptions.indy = false
 }
 
 gitProperties {
@@ -96,12 +112,7 @@ tasks.withType(Test) {
     useJUnitPlatform()
 }
 
-tasks.withType(Test) {
-    systemProperty "geb.env", System.getProperty('geb.env')
-    systemProperty "geb.build.reportsDir", reporting.file("geb/integrationTest")
-    systemProperty 'webdriver.chrome.driver', "${System.getenv('CHROMEWEBDRIVER')}/chromedriver"
-    systemProperty 'webdriver.gecko.driver', "${System.getenv('GECKOWEBDRIVER')}/geckodriver"
-}
+bootJar.enabled = false
 
 publishing {
     publications {

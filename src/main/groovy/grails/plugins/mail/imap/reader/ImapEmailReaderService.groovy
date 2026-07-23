@@ -6,9 +6,9 @@ import grails.plugins.mail.oauth.token.OAuthToken
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
-import javax.mail.Folder
-import javax.mail.Session
-import javax.mail.Store
+import jakarta.mail.Folder
+import jakarta.mail.Session
+import jakarta.mail.Store
 
 @CompileStatic
 @Slf4j

@@ -5,7 +5,7 @@ import grails.plugins.mail.oauth.MailOAuthService
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import org.springframework.mail.javamail.JavaMailSenderImpl
-import javax.mail.Session
+import jakarta.mail.Session
 
 @CompileStatic
 @Slf4j

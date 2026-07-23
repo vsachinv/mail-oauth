@@ -23,8 +23,8 @@ import com.microsoft.graph.models.Message
 import org.springframework.mail.MailAuthenticationException
 import org.springframework.mail.MailException
 import org.springframework.mail.MailSendException
-import javax.mail.AuthenticationFailedException
-import javax.mail.internet.MimeMessage
+import jakarta.mail.AuthenticationFailedException
+import jakarta.mail.internet.MimeMessage
 
 
 @Slf4j
