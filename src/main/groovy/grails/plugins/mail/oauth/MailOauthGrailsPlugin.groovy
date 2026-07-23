@@ -20,13 +20,13 @@ import org.springframework.mail.MailSender
 class MailOauthGrailsPlugin extends Plugin {
 
     // the version or versions of Grails the plugin is designed for
-    def grailsVersion = "6.0.0 > *"
+    def grailsVersion = "7.0.0 > *"
     // resources that are excluded from plugin packaging
     def pluginExcludes = [
             "grails-app/views/error.gsp"
     ]
 
-    def dependsOn = [mail: "* > 4.0.0"]
+    def dependsOn = [mail: "* > 5.0.0"]
 
     // TODO Fill in these fields
     def title = "Mail Oauth" // Headline display name of the plugin
