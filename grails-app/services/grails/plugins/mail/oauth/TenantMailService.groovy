@@ -50,11 +50,22 @@ class TenantMailService {
         MailMessageBuilder builder = resolveBuilder(tenantId,cfg, props)
         callable.delegate = builder
         callable.resolveStrategy = Closure.DELEGATE_FIRST
+        Long previousTenantId = TenantIdContext.getTenantId()
         TenantIdContext.setTenantId(tenantId)
-        callable.call(builder)
-        ExecutorService executor =
-                tenantMailExecutorRegistry.executorFor(tenantId, props.poolSize)
-        builder.sendMessage(executor)
+        try {
+            callable.call(builder)
+            ExecutorService executor =
+                    tenantMailExecutorRegistry.executorFor(tenantId, props.poolSize)
+            return builder.sendMessage(executor)
+        } finally {
+            // Restore the caller thread's prior tenant. Without this, a direct (non-controller)
+            // invocation leaves a stale tenant id on a pooled thread, risking cross-tenant bleed.
+            if (previousTenantId != null) {
+                TenantIdContext.setTenantId(previousTenantId)
+            } else {
+                TenantIdContext.clear()
+            }
+        }
     }
 
 

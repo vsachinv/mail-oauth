@@ -93,7 +93,7 @@ repositories {
 }
 
 dependencies {
-    implementation "org.grails.plugins:mail-oauth:7.5-JDK11-1.0-M10"  // refer to latest version from gradle.properties / Nexus
+    implementation "org.grails.plugins:mail-oauth:7.5-JDK11-1.0-M11"  // refer to latest version from gradle.properties / Nexus
 }
 ```
 
