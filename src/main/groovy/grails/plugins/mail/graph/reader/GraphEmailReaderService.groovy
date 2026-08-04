@@ -1,6 +1,7 @@
 package grails.plugins.mail.graph.reader
 
 import com.microsoft.graph.core.exceptions.ClientException
+import com.microsoft.graph.models.Attachment
 import com.microsoft.graph.models.AttachmentCollectionResponse
 import com.microsoft.graph.models.MailFolder
 import com.microsoft.graph.models.MailFolderCollectionResponse
@@ -8,6 +9,7 @@ import com.microsoft.graph.models.Message
 import com.microsoft.graph.models.MessageCollectionResponse
 import com.microsoft.graph.serviceclient.GraphServiceClient
 import com.microsoft.graph.users.item.UserItemRequestBuilder
+import com.microsoft.graph.users.item.messages.item.attachments.AttachmentsRequestBuilder
 import com.microsoft.graph.users.item.messages.item.move.MovePostRequestBody
 import com.microsoft.graph.users.item.mailfolders.item.messages.*
 import grails.plugins.mail.graph.GraphApiClient
@@ -21,6 +23,20 @@ import java.util.function.Consumer
 @Slf4j
 @CompileStatic
 class GraphEmailReaderService {
+
+    /*
+    $select set that lists attachments without their content. Prefer it over a hand-rolled list:
+    dropping 'isInline' hides inline signature images among real attachments, dropping 'contentType'
+    breaks type based routing.
+    */
+    static final List<String> ATTACHMENT_METADATA_FIELDS =
+            ['id', 'name', 'contentType', 'size', 'isInline', 'lastModifiedDateTime'].asImmutable()
+
+    /* Graph 400s on '@odata.type' as a $select field but returns it either way, so it is stripped. */
+    private static final List<String> DISALLOWED_SELECT_FIELDS = ['@odata.type', 'odata.type'].asImmutable()
+
+    /* Handle passed to getMessageAttachment, so it is never allowed to be selected away. */
+    private static final String MANDATORY_SELECT_FIELD = 'id'
 
     GraphApiClient graphApiClient
 
@@ -84,18 +100,143 @@ class GraphEmailReaderService {
     }
 
     /*
-    Return the attachment of the message
+    All attachments of the message, content included: fileAttachment.contentBytes arrives inline as
+    base64, about 1.33x the file size, for every attachment. Prefer the 3 arg overload where
+    attachments can be large.
+    Throws IllegalStateException if Graph returns an attachment without an @odata.type.
     reference: https://docs.microsoft.com/en-us/graph/api/message-list-attachments?view=graph-rest-1.0&tabs=java
     */
 
     AttachmentCollectionResponse getMessageAttachments(GraphConfig graphConfig, String messageId) {
-        log.debug("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [STARTED] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId}")
-        AttachmentCollectionResponse attachments = getUserItemRequestBuilder(graphConfig)
+        return fetchMessageAttachments(graphConfig, messageId, null)
+    }
+
+    /*
+    Attachments of the message restricted to the given OData $select fields, which keeps
+    contentBytes out of the response. Pass ATTACHMENT_METADATA_FIELDS unless a narrower set is
+    needed.
+
+    selectFields is sanitised first: blanks and '@odata.type' dropped, duplicates removed, 'id'
+    forced in. A null, empty or fully stripped list warns and falls back to the content bearing
+    fetch above.
+    Throws IllegalStateException if Graph returns an attachment without an @odata.type.
+    reference: https://docs.microsoft.com/en-us/graph/api/message-list-attachments?view=graph-rest-1.0
+    */
+
+    AttachmentCollectionResponse getMessageAttachments(GraphConfig graphConfig, String messageId, List<String> selectFields) {
+        List<String> effectiveFields = sanitiseSelectFields(selectFields)
+        if (!effectiveFields) {
+            log.warn("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [NO_USABLE_SELECT] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | REQUESTED_SELECT=${selectFields} - falling back to a full fetch that returns fileAttachment.contentBytes inline for every attachment, pass ATTACHMENT_METADATA_FIELDS to avoid this")
+        }
+        return fetchMessageAttachments(graphConfig, messageId, effectiveFields)
+    }
+
+    /*
+    One attachment by id, content included. Pairs with the $select overload above: list metadata
+    first, then fetch content only for the attachments actually needed, one call each.
+
+    Returns a FileAttachment, ItemAttachment or ReferenceAttachment, so branch on the subtype:
+    ItemAttachment content is not on this endpoint at all - an attached .msg/.eml needs
+    $expand=microsoft.graph.itemAttachment/item - and absent content there is not an empty
+    attachment. The v6 SDK generates no '$value' builder for message attachments, so contentBytes is
+    held in memory once decoded; do not fan this call out over every attachment of a large message.
+
+    Throws IllegalArgumentException on a blank messageId or attachmentId, IllegalStateException if
+    Graph returns no @odata.type.
+    reference: https://docs.microsoft.com/en-us/graph/api/attachment-get?view=graph-rest-1.0&tabs=java
+    */
+
+    Attachment getMessageAttachment(GraphConfig graphConfig, String messageId, String attachmentId) {
+        if (!messageId || !attachmentId) {
+            throw new IllegalArgumentException("messageId and attachmentId are both required to fetch an attachment, got messageId=${messageId} attachmentId=${attachmentId}")
+        }
+        log.debug("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENT] [STARTED] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | ATTACHMENT_ID=${attachmentId}")
+        Attachment attachment = getUserItemRequestBuilder(graphConfig)
+                .messages().byMessageId(messageId)
+                .attachments().byAttachmentId(attachmentId)
+                .get()
+        if (isUntyped(attachment)) {
+            log.error("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENT] [UNTYPED_ATTACHMENT] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | ATTACHMENT_ID=${attachmentId}")
+            throw new IllegalStateException("Graph returned attachment ${attachmentId} of message ${messageId} without an @odata.type discriminator, so its content cannot be read")
+        }
+        log.debug("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENT] [SUCCESS] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | ATTACHMENT_ID=${attachmentId} | TYPE=${attachment?.getClass()?.simpleName} | CONTENT_TYPE=${attachment?.contentType} | SIZE=${attachment?.size}")
+        return attachment
+    }
+
+    /* Single request path behind both public overloads. A null or empty selectFields means no $select. */
+    private AttachmentCollectionResponse fetchMessageAttachments(GraphConfig graphConfig, String messageId, List<String> selectFields) {
+        log.debug("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [STARTED] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | SELECT=${selectFields ?: 'ALL'}")
+        AttachmentsRequestBuilder attachmentsRequestBuilder = getUserItemRequestBuilder(graphConfig)
                 .messages().byMessageId(messageId)
                 .attachments()
-                .get();
+        AttachmentCollectionResponse attachments = selectFields ?
+                attachmentsRequestBuilder.get(new Consumer<AttachmentsRequestBuilder.GetRequestConfiguration>() {
+                    @Override
+                    void accept(AttachmentsRequestBuilder.GetRequestConfiguration requestConfiguration) {
+                        requestConfiguration.queryParameters.select = selectFields as String[]
+                    }
+                }) : attachmentsRequestBuilder.get()
+        verifyAttachmentCollection(graphConfig, messageId, selectFields, attachments)
         log.debug("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [SUCCESS] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | COUNT=${attachments?.value?.size()}")
         return attachments
+    }
+
+    /*
+    The usable $select fields, or [] when nothing usable is left. Drops blanks ('$select=id,,name'
+    is a 400) and DISALLOWED_SELECT_FIELDS, dedupes case insensitively, and prepends 'id' unless
+    already present verbatim - so metadata never comes back without the handle needed to fetch its
+    content. Verbatim because OData property names are case sensitive: a caller's 'ID' is a field
+    Graph does not have and does not count as the id.
+    */
+    private static List<String> sanitiseSelectFields(List<String> selectFields) {
+        List<String> cleaned = []
+        selectFields?.each { String field ->
+            String trimmed = field?.trim()
+            boolean usable = trimmed && !DISALLOWED_SELECT_FIELDS.contains(trimmed.toLowerCase())
+            if (usable && !cleaned.any { String kept -> kept.equalsIgnoreCase(trimmed) }) {
+                cleaned.add(trimmed)
+            }
+        }
+        if (!cleaned) {
+            return []
+        }
+        if (!cleaned.contains(MANDATORY_SELECT_FIELD)) {
+            cleaned.add(0, MANDATORY_SELECT_FIELD)
+        }
+        return cleaned
+    }
+
+    /*
+    Two failures Graph signals only by omission.
+
+    Attachment.createFromDiscriminatorValue returns the abstract base Attachment when '@odata.type'
+    is missing or unrecognised - it does not raise. Callers branch on FileAttachment /
+    ItemAttachment / ReferenceAttachment, so such an element matches none of them and the attachment
+    is lost behind a 200 OK. Throws instead, so the message is not marked processed while its
+    attachments are missing.
+
+    An '@odata.nextLink' means value holds a partial set. This endpoint returns every attachment in
+    one response today, so warn rather than page.
+    */
+    private void verifyAttachmentCollection(GraphConfig graphConfig, String messageId, List<String> selectFields,
+                                            AttachmentCollectionResponse attachments) {
+        if (attachments?.odataNextLink) {
+            log.warn("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [PARTIAL_PAGE] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | COUNT=${attachments?.value?.size()} - @odata.nextLink is present so the returned collection is not the complete attachment set")
+        }
+        List<Attachment> attachmentList = attachments?.value
+        if (!attachmentList) {
+            return
+        }
+        List<Attachment> untyped = attachmentList.findAll { Attachment attachment -> isUntyped(attachment) }
+        if (untyped) {
+            log.error("[GRAPH_READ_EMAIL] [COLLECT_ATTACHMENTS] [UNTYPED_ATTACHMENT] - CONFIG=${graphConfig.configName} | EMAIL_ADDRESS=${graphConfig.emailAddress} | MESSAGE_ID=${messageId} | UNTYPED_COUNT=${untyped.size()} | TOTAL_COUNT=${attachmentList.size()} | SELECT=${selectFields ?: 'ALL'}")
+            throw new IllegalStateException("Graph returned ${untyped.size()} of ${attachmentList.size()} attachment(s) of message ${messageId} without an @odata.type discriminator, refusing to process a partially typed attachment collection")
+        }
+    }
+
+    /* True when the SDK could not resolve a concrete attachment subtype and handed back the base type. */
+    private static boolean isUntyped(Attachment attachment) {
+        return attachment != null && attachment.getClass() == Attachment
     }
 
     /*
