@@ -46,8 +46,8 @@ dependencies {
     compileOnly "jakarta.servlet:jakarta.servlet-api"
     profile "org.apache.grails.profiles:plugin"
 
-    // Mail (Grails 7 / jakarta.mail) + Microsoft OAuth + Graph
-    implementation 'org.grails.plugins:grails-mail:5.0.3'
+    // Mail (Apache Grails 7 grails-mail, jakarta.mail) + Microsoft OAuth + Graph
+    implementation "org.apache.grails:grails-mail"   // version managed by grails-bom
     implementation "commons-io:commons-io:2.19.0"
     implementation 'com.github.scribejava:scribejava-core:8.3.3'
     implementation 'com.github.scribejava:scribejava-apis:8.3.3'

@@ -6,15 +6,15 @@ A Grails plugin that adds the capability to send emails using the Microsoft Grap
 
 | Detail              | Value                                                     |
 |---------------------|-----------------------------------------------------------|
-| Framework           | Apache Grails 7.0.14 (Spring Boot 3.5.x, Jakarta EE)     |
+| Framework           | Apache Grails 7.0.16 (Spring Boot 3.5.x, Jakarta EE)     |
 | JDK                 | 17                                                        |
 | Groovy              | 4 (managed by `org.apache.grails:grails-bom`)            |
 | Group               | `org.grails.plugins`                                      |
 | Artifact            | `mail-oauth`                                              |
-| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M1`)           |
+| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M2`)           |
 | Repository          | RxLogix Nexus                                             |
 
-> **Grails 7 upgrade note:** This plugin was migrated from Grails 6.2.0 / JDK 11 to Apache Grails 7.0.14 / JDK 17. The Maven group of core dependencies moved to `org.apache.grails`, the Grails Mail plugin is now `org.grails.plugins:grails-mail` (5.x, Jakarta Mail based), and all `javax.*` EE imports became `jakarta.*`.
+> **Grails 7 upgrade note:** This plugin was migrated from Grails 6.2.0 / JDK 11 to Apache Grails 7.0.16 / JDK 17. The Maven group of core dependencies moved to `org.apache.grails`, the Grails Mail plugin is now `org.apache.grails:grails-mail` (7.0.x, Jakarta Mail based, versioned with Grails), and all `javax.*` EE imports became `jakarta.*`.
 
 ## Version Compatibility
 
@@ -22,7 +22,8 @@ Pick the plugin version that matches your host application's Grails major versio
 
 | Plugin version         | Grails    | JDK | Groovy   | Servlet / Mail namespace | Grails Mail plugin                 | Status          |
 |------------------------|-----------|-----|----------|--------------------------|------------------------------------|-----------------|
-| `7.6.0-M1` (current)   | 7.0.14    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.grails.plugins:grails-mail` 5.x | Active (Grails 7) |
+| `7.6.0-M2` (current)   | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Active (Grails 7) |
+| `7.6.0-M1`             | 7.0.14    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.grails.plugins:grails-mail` 5.0.3 | Superseded by 7.6.0-M2 |
 | `7.5-JDK11-1.0-M10`    | 6.2.0     | 11  | 3.0.23   | Java EE (`javax.*`)      | `org.grails.plugins:mail` 4.0.0    | Maintenance (last Grails 6.x) |
 
 **For a Grails 6.x application**, use the last 6.x-compatible release instead of the current one:
@@ -114,11 +115,11 @@ repositories {
 }
 
 dependencies {
-    implementation "org.grails.plugins:mail-oauth:7.6.0-M1"  // refer to latest version from gradle.properties / Nexus
+    implementation "org.grails.plugins:mail-oauth:7.6.0-M2"  // refer to latest version from gradle.properties / Nexus
 }
 ```
 
-This plugin depends on the Grails Mail plugin (`org.grails.plugins:grails-mail` 5.0.0+, Jakarta Mail based), which is loaded automatically.
+This plugin depends on the Grails Mail plugin (`org.apache.grails:grails-mail` 7.0.16, Jakarta Mail based), which is loaded automatically.
 
 ## Controller Endpoints
 
@@ -162,6 +163,8 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 The plugin is multi-tenant end to end: a single application instance can send and read mail for many tenants, each with its own Microsoft Entra ID application, credentials, mailbox, and OAuth tokens. Every send, token operation, and reader call is scoped by a **tenant id**.
 
 > 📘 For the full component breakdown, diagrams, token lifecycle, and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
+
+> 📝 Release history is tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
 > ⚠️ **Two different "tenants" — don't confuse them:**
 > - **Application tenant id** — a `Long` that identifies *your* tenant (organization/customer) within the host application. This is what the plugin partitions everything by.

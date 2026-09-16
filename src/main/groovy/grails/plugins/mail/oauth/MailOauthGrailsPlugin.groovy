@@ -26,7 +26,7 @@ class MailOauthGrailsPlugin extends Plugin {
             "grails-app/views/error.gsp"
     ]
 
-    def dependsOn = [mail: "* > 5.0.0"]
+    def dependsOn = [mail: "* > 7.0.14"]
 
     // TODO Fill in these fields
     def title = "Mail Oauth" // Headline display name of the plugin

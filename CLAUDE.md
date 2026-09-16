@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`mail-oauth` is an **Apache Grails 7.0.14 plugin** (not an application) that lets PV Suite Grails apps send and read mail through Microsoft OAuth-secured channels instead of basic-auth SMTP. It layers OAuth 2.0 token management, multi-tenant mail configuration, and Microsoft Graph / IMAP email reading on top of the Grails Mail plugin (`org.grails.plugins:grails-mail:5.0.3`).
+`mail-oauth` is an **Apache Grails 7.0.16 plugin** (not an application) that lets PV Suite Grails apps send and read mail through Microsoft OAuth-secured channels instead of basic-auth SMTP. It layers OAuth 2.0 token management, multi-tenant mail configuration, and Microsoft Graph / IMAP email reading on top of the Grails Mail plugin (`org.apache.grails:grails-mail:7.0.16`).
 
-- Stack: Apache Grails 7.0.14, Groovy 4 (via BOM), **JDK 17** (hard requirement — `compileJava.options.release = 17`), Gradle 8.14.4 wrapper, Spring Boot 3.5.x, Jakarta EE.
+- Stack: Apache Grails 7.0.16, Groovy 4 (via BOM), **JDK 17** (hard requirement — `compileJava.options.release = 17`), Gradle 8.14.4 wrapper, Spring Boot 3.5.x, Jakarta EE.
 - The Gradle plugin comes from a `buildscript {}` block (`org.apache.grails.gradle.grails-plugin`), and versions are managed by `org.apache.grails:grails-bom`. Core module groups differ: `org.apache.grails`, `org.apache.grails.web`, `org.apache.grails.views`.
 - OAuth is done with ScribeJava (`MicrosoftAzureActiveDirectory20Api`); Graph calls use the `com.microsoft.graph:microsoft-graph:6.+` SDK.
-- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M1`, the first Grails 7 migration build line).
+- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M2`, the Grails 7 build line; see `CHANGELOG.md`).
 
 ## Commands
 
