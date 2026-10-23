@@ -5,6 +5,8 @@ import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.model.OAuth2AccessToken
 import com.github.scribejava.core.oauth.OAuth20Service
 import com.github.scribejava.core.revoke.TokenTypeHint
+import grails.plugins.mail.graph.auth.GraphAuthStrategy
+import grails.plugins.mail.graph.auth.GraphAuthStrategyFactory
 import grails.plugins.mail.graph.sender.SessionStateStoreService
 import grails.plugins.mail.oauth.token.OAuthToken
 import grails.plugins.mail.oauth.token.TokenStore
@@ -68,7 +70,7 @@ class MailOAuthService  {
         }
         OAuth2AccessToken token
         if (ctx.daemon) {
-            token = ctx.oauthService.getAccessTokenClientCredentialsGrant()
+            token = ctx.authStrategy.acquireToken(ctx.oauthService)
         } else {
             token = ctx.oauthService.getAccessToken(code)
             MailOAuthUtil.validateToken(token.accessToken, cfg.username, ctx.oauthService)
@@ -94,8 +96,8 @@ class MailOAuthService  {
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
         TenantOAuthContext ctx = buildContext(cfg,tenantId)
         OAuth2AccessToken oauthToken = ctx.daemon ?
-                ctx.oauthService.getAccessTokenClientCredentialsGrant() :
-                ctx.oauthService.refreshAccessToken(oldToken.refreshToken)
+                ctx.authStrategy.acquireToken(ctx.oauthService) :
+                ctx.authStrategy.refreshToken(ctx.oauthService, oldToken.refreshToken)
 
         OAuthToken newToken = new OAuthToken(oauthToken)
         tokenStore.saveToken(tenantId, newToken)
@@ -143,19 +145,30 @@ class MailOAuthService  {
 
 
     TenantOAuthContext buildContext(ConfigObject cfg, Long tenantId) {
-        OAuth20Service service =
-                new ServiceBuilder(cfg.oAuth.client_id as String)
-                        .apiSecret(cfg.oAuth.secret_val as String)
-                        .defaultScope(MailOAuthUtil.apiScope())
-                        .callback(MailOAuthUtil.callBackUrl())
-                        .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id as String))
+        // Per-tenant credential strategy: client secret (default) or PFX certificate when
+        // <tenant>.grails.mail.oAuth.useCertAuth is true. Certificate auth is app-only, so it
+        // requires the (global) daemon flag; the factory rejects the combination otherwise.
+        GraphAuthStrategy strategy = GraphAuthStrategyFactory.build(cfg, MailOAuthUtil.isDaemon())
+
+        // ScribeJava rejects an empty apiSecret, so it is only set when configured (absent for certificate auth).
+        // The service is still built in certificate mode: it is used for revoke and the admin-consent callback.
+        String clientSecret = cfg.oAuth.secret_val ? cfg.oAuth.secret_val as String : null
+        ServiceBuilder builder = new ServiceBuilder(cfg.oAuth.client_id as String)
+        if (clientSecret) {
+            builder.apiSecret(clientSecret)
+        }
+        OAuth20Service service = builder
+                .defaultScope(MailOAuthUtil.apiScope())
+                .callback(MailOAuthUtil.callBackUrl())
+                .build(MicrosoftAzureActiveDirectory20Api.custom(cfg.oAuth.tenant_id as String))
 
         new TenantOAuthContext(
                 tenantId: tenantId,
                 oauthService: service,
-                daemon: MailOAuthUtil.isDaemon(),
+                daemon: strategy.isDaemon(),
                 enable: cfg.oAuth.enabled ?: false,
-                clientId: cfg.oAuth.client_id
+                clientId: cfg.oAuth.client_id,
+                authStrategy: strategy
         )
     }
 

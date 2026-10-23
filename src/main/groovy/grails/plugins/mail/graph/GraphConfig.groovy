@@ -18,5 +18,9 @@ class GraphConfig implements Serializable {
     boolean isShared = false
     boolean daemon = false
     boolean debug = false
-    Long tenantId
+    Long tenantId                 // application tenant id (multi-tenancy); graphTenantId is the Entra directory id
+    boolean useCertAuth = false
+    String certificatePath        // path to PFX (PKCS12) keystore holding the private key + certificate
+    String certificatePassword    // PFX password (optional if the keystore has none)
+    String certificateAlias       // key alias inside the PFX; first alias is used if omitted
 }

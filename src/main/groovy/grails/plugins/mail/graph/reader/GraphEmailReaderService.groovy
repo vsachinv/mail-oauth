@@ -136,7 +136,7 @@ class GraphEmailReaderService {
     private UserItemRequestBuilder getUserItemRequestBuilder(GraphConfig graphConfig) {
         GraphServiceClient serviceClient = graphApiClient.getClientFor(graphConfig)
         UserItemRequestBuilder userRequestBuilder = serviceClient.me()
-        if (graphConfig.daemon || (graphConfig.emailAddress && graphConfig.isShared)) {
+        if (graphConfig.daemon || graphConfig.useCertAuth || (graphConfig.emailAddress && graphConfig.isShared)) {
             log.debug("[GRAPH_READ_EMAIL] [GET_USER_ITEM_REQUEST_BUILDER] taking as ${graphConfig.emailAddress}")
             userRequestBuilder = serviceClient.users().byUserId(graphConfig.emailAddress)
         }

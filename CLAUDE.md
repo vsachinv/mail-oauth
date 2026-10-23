@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Stack: Apache Grails 7.0.16, Groovy 4 (via BOM), **JDK 17** (hard requirement — `compileJava.options.release = 17`), Gradle 8.14.4 wrapper, Spring Boot 3.5.x, Jakarta EE.
 - The Gradle plugin comes from a `buildscript {}` block (`org.apache.grails.gradle.grails-plugin`), and versions are managed by `org.apache.grails:grails-bom`. Core module groups differ: `org.apache.grails`, `org.apache.grails.web`, `org.apache.grails.views`.
 - OAuth is done with ScribeJava (`MicrosoftAzureActiveDirectory20Api`); Graph calls use the `com.microsoft.graph:microsoft-graph:6.+` SDK.
-- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M2`, the Grails 7 build line; see `CHANGELOG.md`).
+- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M3`, the Grails 7 build line; see `CHANGELOG.md`).
 
 ## Commands
 
@@ -46,7 +46,7 @@ Nexus credentials come from `nexusUsername`/`nexusPassword`/`nexusUrl` gradle pr
 
 **Config resolution** (`TenantMailConfigResolverService.resolve(tenantId)`): if `tenantId == config.DEFAULT_TENANT_ID`, use org-level `grails.mail`; otherwise read `tenant_<id>.grails.mail`. In both cases host/port/props from the global `grails.mail` are merged in as defaults (tenant values win). Returns a `ConfigObject`; throws if no config found.
 
-**Token management** (`MailOAuthService`): generate auth-code URL → exchange code for token in `callback` → store in `MemoryTokenStore` (in-memory `ConcurrentHashMap<Long, OAuthToken>` keyed by tenant). `getAccessToken()` auto-refreshes when expired. Supports both interactive (auth code) and `daemon` (client-credentials / admin-consent) flows — `daemon` is driven by `grails.mail.oAuth.daemon`. OAuth `state` is encoded with the tenant id (`MailOAuthUtil.buildOAuthState`/`parseState`) so the stateless callback can recover the tenant.
+**Token management** (`MailOAuthService`): generate auth-code URL → exchange code for token in `callback` → store in `MemoryTokenStore` (in-memory `ConcurrentHashMap<Long, OAuthToken>` keyed by tenant). `getAccessToken()` auto-refreshes when expired. Supports both interactive (auth code) and `daemon` (client-credentials / admin-consent) flows — `daemon` is driven by `grails.mail.oAuth.daemon`. The app credential is chosen per tenant by `GraphAuthStrategyFactory` (`grails.plugins.mail.graph.auth`): `SecretKeyStrategy` (client secret via ScribeJava) or `CertificateStrategy` (PFX-signed JWT client assertion, when `oAuth.useCertAuth` is true; requires daemon). The strategy lives on `TenantOAuthContext.authStrategy`. OAuth `state` is encoded with the tenant id (`MailOAuthUtil.buildOAuthState`/`parseState`) so the stateless callback can recover the tenant.
 
 **Graph client caching** (`TenantGraphClientRegistryService`): caches one `GraphApiClient` per tenant, keyed by a signature of the OAuth config; rebuilds under a per-tenant `ReentrantLock` when the signature changes.
 
