@@ -7,6 +7,8 @@ import com.github.scribejava.core.oauth.OAuth20Service
 import com.github.scribejava.core.revoke.TokenTypeHint
 import grails.config.Config
 import grails.core.support.GrailsConfigurationAware
+import grails.plugins.mail.graph.auth.GraphAuthStrategy
+import grails.plugins.mail.graph.auth.GraphAuthStrategyFactory
 import grails.plugins.mail.oauth.token.OAuthToken
 import grails.util.Holders
 import groovy.util.logging.Slf4j
@@ -19,18 +21,16 @@ class MailOAuthService implements GrailsConfigurationAware {
     def stateStoreService
 
     private String clientId
-    private String clientSecret
     private String apiScope
     private String callbackUrl
     private String tenantId
     private OAuth20Service oAuth20Service
-
-    private boolean daemon = false
+    private GraphAuthStrategy authStrategy
 
     String generateAuthCodeURL() {
         String state = UUID.randomUUID().toString().replaceAll('-', '')
         stateStoreService.storeState(clientId, state)
-        if (this.daemon) {
+        if (authStrategy.isDaemon()) {
             log.debug("[GRAPH_EMAIL] [GENERATE_AUTH_CODE_URL] Generating admin consent url")
             return MailOAuthUtil.buildAdminConsentUrl(state, tenantId, clientId, callbackUrl)
         }
@@ -47,8 +47,8 @@ class MailOAuthService implements GrailsConfigurationAware {
             throw new Exception('State mismatch. State sent is different from what received')
         }
         OAuth2AccessToken token
-        if (this.daemon) {
-            token = oAuth20Service.getAccessTokenClientCredentialsGrant()
+        if (authStrategy.isDaemon()) {
+            token = authStrategy.acquireToken(oAuth20Service)
         } else {
             token = oAuth20Service.getAccessToken(code)
             MailOAuthUtil.validateToken(token.accessToken, Holders.config.getProperty('grails.mail.username'), oAuth20Service)
@@ -61,10 +61,10 @@ class MailOAuthService implements GrailsConfigurationAware {
     synchronized OAuthToken refreshAccessToken(OAuthToken oldToken) {
         log.debug('[GRAPH_EMAIL] [REFRESH_ACCESS_TOKEN] Refreshing token')
         OAuth2AccessToken token
-        if (daemon) {
-            token = oAuth20Service.getAccessTokenClientCredentialsGrant()
+        if (authStrategy.isDaemon()) {
+            token = authStrategy.acquireToken(oAuth20Service)
         } else {
-            token = oAuth20Service.refreshAccessToken(oldToken.refreshToken)
+            token = authStrategy.refreshToken(oAuth20Service, oldToken.refreshToken)
         }
         OAuthToken authToken = new OAuthToken(token)
         tokenStore.saveToken(authToken)
@@ -74,17 +74,16 @@ class MailOAuthService implements GrailsConfigurationAware {
     OAuthToken getAccessToken() {
         OAuthToken oAuthToken = tokenStore.getToken()
         if (!oAuthToken) {
-            if (daemon) {
+            if (authStrategy.isDaemon()) {
                 return refreshAccessToken(null)
             }
-            log.error("[GRAPH_EMAIL] [GET_ACCESS_TOKEN] No Access token generated for mail send. Please generate using /mailOAuth/generate uri")
+            log.error('[GRAPH_EMAIL] [GET_ACCESS_TOKEN] No access token found. Generate one via /mailOAuth/generate')
             return null
         }
         if (oAuthToken.expireAt > new Date()) {
             return oAuthToken
         }
-        oAuthToken = refreshAccessToken(oAuthToken)
-        return oAuthToken
+        return refreshAccessToken(oAuthToken)
     }
 
     void revokeToken() {
@@ -121,16 +120,24 @@ class MailOAuthService implements GrailsConfigurationAware {
     @Override
     void setConfiguration(Config co) {
         this.clientId = co.getProperty('grails.mail.oAuth.client_id')
-        this.clientSecret = co.getProperty('grails.mail.oAuth.secret_val')
         this.apiScope = co.getProperty('grails.mail.oAuth.api_scope')
         this.callbackUrl = co.getProperty('grails.mail.oAuth.callback_url')
         this.tenantId = co.getProperty('grails.mail.oAuth.tenant_id')
-        this.daemon = co.getProperty('grails.mail.oAuth.daemon', Boolean, false)
-        if (this.daemon && !co.getProperty('grails.mail.username')) {
+        this.authStrategy = GraphAuthStrategyFactory.build(co)
+        if (authStrategy.isDaemon() && !co.getProperty('grails.mail.username')) {
             throw new Exception("Invalid mail oauth configuration as Username is blank and daemon is true")
         }
-        this.oAuth20Service = new ServiceBuilder(this.clientId)
-                .apiSecret(this.clientSecret).defaultScope(this.apiScope)
+        if (co.getProperty('grails.mail.oAuth.useCertAuth', Boolean, false) && !co.getProperty('grails.mail.oAuth.daemon', Boolean, false)) {
+            throw new Exception("Invalid mail oauth configuration as useCertAuth is true but daemon is false. Certificate auth requires daemon mode")
+        }
+        // Always built: used by SecretKeyStrategy (daemon + secret), revokeToken and the auth-code flow.
+        // ScribeJava rejects an empty apiSecret, so it is only set when configured (absent for certificate auth).
+        String clientSecret = co.getProperty('grails.mail.oAuth.secret_val', String, null)
+        ServiceBuilder builder = new ServiceBuilder(this.clientId)
+        if (clientSecret) {
+            builder.apiSecret(clientSecret)
+        }
+        this.oAuth20Service = builder.defaultScope(this.apiScope)
                 .callback(this.callbackUrl)
                 .build(MicrosoftAzureActiveDirectory20Api.custom(this.tenantId))
     }
