@@ -129,6 +129,37 @@ Response is parsed and returned as `OAuth2AccessToken`.
 | `src/main/groovy/grails/plugins/mail/graph/GraphConfig.groovy` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` |
 | `grails-app/conf/application.yml` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` config keys |
 
+### Multi-tenant line (7.6.0-M3) — additional changes
+
+| File | Change |
+|---|---|
+| `src/main/groovy/grails/plugins/mail/tenant/TenantOAuthContext.groovy` | Added `GraphAuthStrategy authStrategy`, resolved per tenant |
+| `grails-app/services/grails/plugins/mail/oauth/MailOAuthService.groovy` | `buildContext(cfg, tenantId)` builds the strategy from the tenant `ConfigObject`; ScribeJava service built without `apiSecret` when none is configured |
+| `src/main/groovy/grails/plugins/mail/graph/auth/GraphAuthStrategyFactory.groovy` | `build(ConfigObject mailCfg, boolean daemon)` replaces the Grails `Config` overload; `GraphConfig` overload uses `graphTenantId` |
+| `src/main/groovy/grails/plugins/mail/graph/token/InMemoryReaderTokenStoreService.groovy` | Strategy-driven acquire/refresh against the tenant-keyed `MemoryTokenStore` |
+
+---
+
+## Release notes
+
+### 7.6.0-M3 (Grails 7, multi-tenant line) — 2026-10-23 — PVR-107197
+
+First release of certificate-based authentication on the multi-tenant line.
+
+- **Per-tenant credential.** Each tenant's `<tenant>.grails.mail.oAuth` block chooses its own credential: `secret_val` (default) or `useCertAuth: true` with `certificatePath`, `certificatePassword` and optional `certificateAlias`. Tenants may mix credential types in one deployment.
+- **Daemon is global.** `grails.mail.oAuth.daemon` continues to apply to all tenants. Certificate auth is app-only, so `useCertAuth` with `daemon=false` fails at context build with an `IllegalStateException`.
+- **Strategy on the tenant context.** `TenantOAuthContext.authStrategy` holds the resolved `GraphAuthStrategy`; `generateAccessToken` and `refreshAccessToken` delegate to it. The admin-consent flow, OAuth state tenant encoding and tenant-keyed token store are unchanged.
+- **ScribeJava without secret.** The `OAuth20Service` is still built for certificate tenants (used by revoke and the admin-consent callback) but `apiSecret` is only set when configured, because ScribeJava rejects an empty secret.
+- **Reader.** `GraphConfig` gains the four certificate fields alongside `graphTenantId` / application `tenantId`; `useCertAuth` is treated like `daemon` for app-only mailbox access and automatic token acquisition.
+- **No new dependencies.** JWT signing uses the JDK `java.security.Signature` API.
+- **Rotation.** The PFX is read on every token acquisition, so replacing the file on disk takes effect without restart or Graph client eviction.
+- **Tests.** `CertificateStrategySpec` and `AuthModeConfigurationSpec` (real ScribeJava construction per tenant for every auth mode); full suite 42 tests passing on JDK 17.
+- **Compatibility.** Secret-based tenants, interactive or daemon, follow the same code paths as 7.6.0-M2. `GraphConfig` `serialVersionUID` unchanged.
+
+### 6.0-JDK11-1.0-M11 (Grails 6 line)
+
+Same feature on the single-tenant Grails 6 line; configuration is under `grails.mail.oAuth` only and `daemon`/`useCertAuth` are validated in `MailOAuthService.setConfiguration` at startup.
+
 ---
 
 ## Configuration
