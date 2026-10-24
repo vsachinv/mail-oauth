@@ -153,7 +153,7 @@ sequenceDiagram
     participant RES as ConfigResolver
     participant GCR as GraphClientRegistry
     participant EXE as ExecutorRegistry
-    participant W as tenant-mail-&lt;id&gt; thread
+    participant W as Tenant worker thread
     participant OAS as MailOAuthService
     participant MS as Microsoft
 
@@ -259,8 +259,8 @@ sequenceDiagram
     Admin->>C: GET /mailOAuth/generate
     C->>C: TenantIdContext.set(tenantContextProvider id)
     C->>OAS: generateAuthCodeURL()
-    OAS->>OAS: cfg = resolve(tenantId); ctx = buildContext
-    OAS->>ST: storeState(clientId, state=tenantId+nonce)
+    OAS->>OAS: cfg = resolve(tenantId), ctx = buildContext
+    OAS->>ST: storeState(clientId, state = tenantId + nonce)
     alt ctx.daemon
         OAS-->>C: adminconsent URL (tenant_id, client_id, state, redirect)
     else interactive
@@ -268,15 +268,15 @@ sequenceDiagram
     end
     C-->>Admin: 302 to Microsoft
     Admin->>MS: sign in / grant consent
-    MS-->>Admin: 302 callback_url?state=…&code=… or admin_consent=True
+    MS-->>Admin: 302 to callback_url with state plus code or admin_consent=True
     Admin->>C: GET /mailOAuth/callback
     C->>OAS: generateAccessToken(code, state, params, admin_consent)
-    OAS->>OAS: tenantId = parseState(state); ctx = buildContext
+    OAS->>OAS: tenantId = parseState(state), ctx = buildContext
     OAS->>ST: verify clientId matches stored state
     alt ctx.daemon
         OAS->>MS: authStrategy.acquireToken (secret or JWT assertion)
     else interactive
-        OAS->>MS: getAccessToken(code); validate token user == username
+        OAS->>MS: getAccessToken(code), validate token user matches username
     end
     OAS->>OAS: tokenStore.saveToken(tenantId, token)
     OAS-->>C: redirect.uri
