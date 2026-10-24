@@ -134,8 +134,8 @@ Consequences:
 - The **default tenant** is simply the tenant whose id equals `DEFAULT_TENANT_ID`; it uses the
   classic single-tenant `grails.mail` block unchanged. Existing deployments keep working.
 - A **specific tenant** must have its own `tenant_<id>.grails.mail` block. Only `host`, `port` and
-  `props` are inherited from the global block; `oAuth.*` is **not** inherited, except `daemon`
-  (see section 5.3).
+  `props` are inherited from the global block; `oAuth.*` is **not** inherited. In particular an
+  unset `oAuth.daemon` on a tenant means `false` (see section 5.3).
 - Static helpers in `MailOAuthUtil` (`callBackUrl`, `apiScope`, `redirectUri`, timeouts,
   `attachmentMax`) always read the **global** `grails.mail.oAuth` block. These are
   deployment-wide, not per tenant.
@@ -214,7 +214,7 @@ Every token operation starts with `MailOAuthService.buildContext(cfg, tenantId)`
 
 ```mermaid
 flowchart TD
-    C["buildContext(cfg, tenantId)"] --> D["daemon = MailOAuthUtil.isDaemon(cfg)<br/>tenant oAuth.daemon, else global"]
+    C["buildContext(cfg, tenantId)"] --> D["daemon = MailOAuthUtil.isDaemon(cfg)<br/>cfg.oAuth.daemon, unset = false"]
     D --> F["GraphAuthStrategyFactory.build(cfg, daemon)"]
     F --> Q{"cfg.oAuth.useCertAuth ?"}
     Q -- no --> SK["SecretKeyStrategy(daemon)"]
@@ -238,13 +238,17 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["tenant_&lt;id&gt;.grails.mail.oAuth.daemon"] -->|set| R["effective daemon"]
-    A -->|unset / empty| G["grails.mail.oAuth.daemon (global)"] --> R
-    R --> U1["MailOAuthService.buildContext"]
-    R --> U2["TenantMailService.createGraphMailSender"]
+    A["resolved cfg.oAuth.daemon"] -->|true / 'true'| T["daemon = true"]
+    A -->|false, unset or empty| F["daemon = false"]
+    T --> U1["MailOAuthService.buildContext"]
+    F --> U1
+    T --> U2["TenantMailService.createGraphMailSender"]
+    F --> U2
 ```
 
-The default tenant has no `tenant_<id>` block, so it always uses the global value.
+There is no fallback from a tenant block to the global `grails.mail.oAuth.daemon`. The default
+tenant resolves to the global `grails.mail` block itself, so for it `cfg.oAuth.daemon` *is* the
+global value. Any other tenant must set `daemon = true` explicitly to run app-only.
 
 ### 5.4 Consent / authorization flow via the controller
 
@@ -366,7 +370,7 @@ grails.mail.username = 'mailbox@company.com'
 
 ```groovy
 DEFAULT_TENANT_ID = 1L
-grails.mail.oAuth.daemon = false                 // global fallback, used by tenant 1
+grails.mail.oAuth.daemon = false                 // applies to tenant 1 (default) only
 
 tenant_42.grails.mail.oAuth.enabled = true       // app-only with certificate
 tenant_42.grails.mail.oAuth.graph.enabled = true

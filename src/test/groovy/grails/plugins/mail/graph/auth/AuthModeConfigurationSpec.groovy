@@ -78,7 +78,7 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         given:
         globals(true)
         TenantIdContext.setTenantId(2L)
-        ConfigObject cfg = tenantCfg(secret_val: 'top-secret')
+        ConfigObject cfg = tenantCfg(daemon: true, secret_val: 'top-secret')
         resolver.resolve(2L) >> cfg
 
         when:
@@ -97,7 +97,7 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         given:
         globals(true)
         TenantIdContext.setTenantId(3L)
-        ConfigObject cfg = tenantCfg(useCertAuth: true, certificatePath: '/tmp/t3.pfx', certificatePassword: 'pw', certificateAlias: 'mailcert')
+        ConfigObject cfg = tenantCfg(daemon: true, useCertAuth: true, certificatePath: '/tmp/t3.pfx', certificatePassword: 'pw', certificateAlias: 'mailcert')
         resolver.resolve(3L) >> cfg
 
         when:
@@ -112,13 +112,13 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         url.startsWith('https://login.microsoftonline.com/entra-tenant/adminconsent')
     }
 
-    void "tenants can mix credential types under the same global daemon flag"() {
+    void "tenants can mix credential types, each declaring daemon itself"() {
         given:
         globals(true)
 
         when:
-        TenantOAuthContext secretCtx = service.buildContext(tenantCfg(secret_val: 's'), 10L)
-        TenantOAuthContext certCtx = service.buildContext(tenantCfg(useCertAuth: true, certificatePath: '/tmp/c.pfx'), 11L)
+        TenantOAuthContext secretCtx = service.buildContext(tenantCfg(daemon: true, secret_val: 's'), 10L)
+        TenantOAuthContext certCtx = service.buildContext(tenantCfg(daemon: true, useCertAuth: true, certificatePath: '/tmp/c.pfx'), 11L)
 
         then:
         secretCtx.authStrategy instanceof SecretKeyStrategy
@@ -127,7 +127,7 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         certCtx.tenantId == 11L
     }
 
-    void "tenant daemon flag overrides the global one: #label"() {
+    void "tenant daemon flag is read from tenant config only: #label"() {
         given:
         globals(globalDaemon)
         Map oAuth = [secret_val: 's']
@@ -140,11 +140,12 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         ctx.daemon == expected
 
         where:
-        label                              | globalDaemon | tenantDaemon || expected
-        'tenant true wins over global false' | false      | true         || true
-        'tenant false wins over global true' | true       | false        || false
-        'tenant unset falls back to global'  | true       | null         || true
-        'tenant string value is parsed'      | false      | 'true'       || true
+        label                                   | globalDaemon | tenantDaemon || expected
+        'tenant true while global false'        | false        | true         || true
+        'tenant false while global true'        | true         | false        || false
+        'tenant unset is false, no global fallback' | true     | null         || false
+        'tenant empty string is false'          | true         | ''           || false
+        'tenant string value is parsed'         | false        | 'true'       || true
     }
 
     void "certificate tenant can be daemon while global daemon is false"() {

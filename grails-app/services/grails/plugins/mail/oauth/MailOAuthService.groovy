@@ -147,7 +147,7 @@ class MailOAuthService  {
     TenantOAuthContext buildContext(ConfigObject cfg, Long tenantId) {
         // Per-tenant credential strategy: client secret (default) or PFX certificate when
         // <tenant>.grails.mail.oAuth.useCertAuth is true. daemon is also resolved per tenant
-        // (tenant value wins, global grails.mail.oAuth.daemon is the fallback). Certificate auth
+        // (read from the tenant config only; unset means false, no global fallback). Certificate auth
         // is app-only, so it requires daemon; the factory rejects the combination otherwise.
         GraphAuthStrategy strategy = GraphAuthStrategyFactory.build(cfg, MailOAuthUtil.isDaemon(cfg))
 

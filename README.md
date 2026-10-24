@@ -148,7 +148,7 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 | `grails.mail.oAuth.api_scope`                   | OAuth scopes requested                               | `https://outlook.office.com/SMTP.Send offline_access` |
 | `grails.mail.oAuth.callback_url`                | OAuth redirect/callback URL                          | `http://localhost:9090/mailOAuth/callback`         |
 | `grails.mail.oAuth.tenant_id`                   | Microsoft tenant ID                                  | `common`                                           |
-| `grails.mail.oAuth.daemon`                      | App-only client-credentials flow (no user login). Per tenant: `tenant_<id>.grails.mail.oAuth.daemon` overrides; the global value is the fallback | `false` |
+| `grails.mail.oAuth.daemon`                      | App-only client-credentials flow (no user login). Per tenant: `tenant_<id>.grails.mail.oAuth.daemon`, unset means `false` (no global fallback); the default tenant uses the global value | `false` |
 | `grails.mail.oAuth.useCertAuth`                 | Use a PFX certificate (JWT client assertion) instead of `secret_val`; requires `daemon=true`; per tenant | `false`  |
 | `grails.mail.oAuth.certificatePath`             | Path to the PFX (PKCS#12) keystore; per tenant       | *(configure per environment)*                      |
 | `grails.mail.oAuth.certificatePassword`         | PFX password; per tenant                             | *(configure per environment -- do not commit)*     |
@@ -166,12 +166,13 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 
 Instead of a client secret, a tenant can authenticate with a certificate. The plugin signs an RS256 JWT client
 assertion with the private key from a PFX keystore and Azure verifies it against the uploaded public certificate.
-Certificate auth is app-only, so it requires `daemon = true` for that tenant. `daemon` is resolved per tenant:
-the tenant's own `oAuth.daemon` wins, and the global `grails.mail.oAuth.daemon` is the fallback. One tenant can
-therefore run app-only with a certificate while another uses interactive user sign-in.
+Certificate auth is app-only, so it requires `daemon = true` for that tenant. `daemon` is resolved per tenant from
+the tenant's own `oAuth.daemon`; unset or empty means `false`, with no fallback to the global `grails.mail.oAuth.daemon`
+(which applies to the default tenant only). One tenant can therefore run app-only with a certificate while another
+uses interactive user sign-in.
 
 ```groovy
-grails.mail.oAuth.daemon = false                      // global fallback (interactive by default)
+grails.mail.oAuth.daemon = false                      // default tenant only (interactive)
 
 tenant_42.grails.mail.username                = 'noreply@tenant42.com'
 tenant_42.grails.mail.oAuth.daemon            = true   // this tenant is app-only

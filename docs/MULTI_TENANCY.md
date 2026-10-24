@@ -244,7 +244,7 @@ tasks.
 - **Revoke** — `revokeToken()` clears the local store first, then best-effort revokes the refresh
   and access tokens at Microsoft.
 
-`daemon` mode (per tenant: `tenant_<id>.grails.mail.oAuth.daemon`, falling back to the global `grails.mail.oAuth.daemon`; see `MailOAuthUtil.isDaemon(ConfigObject)`) switches interactive auth-code flow for the
+`daemon` mode (per tenant: `tenant_<id>.grails.mail.oAuth.daemon`, unset means `false` with no fallback to the global value; the default tenant reads `grails.mail.oAuth.daemon`; see `MailOAuthUtil.isDaemon(ConfigObject)`) switches interactive auth-code flow for the
 client-credentials / admin-consent flow used by app-only (shared mailbox) senders.
 
 ---
