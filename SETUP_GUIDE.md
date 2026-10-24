@@ -191,11 +191,14 @@ GraphConfig config = new GraphConfig(
 ### Multi-tenant deployments (Grails 7 line)
 
 In the multi-tenant build every tenant has its own Entra app registration and credential. Repeat steps 2–4 per
-tenant and put the credential keys under that tenant's block; `daemon` is global:
+tenant and put the credential keys under that tenant's block. `daemon` is resolved per tenant (the tenant's
+`oAuth.daemon` wins; the global `grails.mail.oAuth.daemon` is the fallback), so tenants can independently choose
+app-only or interactive auth:
 
 ```groovy
-grails.mail.oAuth.daemon = true
+grails.mail.oAuth.daemon = false                      // global fallback
 
+tenant_42.grails.mail.oAuth.daemon             = true
 tenant_42.grails.mail.oAuth.client_id          = '...'
 tenant_42.grails.mail.oAuth.tenant_id          = '<tenant42-entra-directory-id>'
 tenant_42.grails.mail.oAuth.useCertAuth        = true
@@ -203,7 +206,7 @@ tenant_42.grails.mail.oAuth.certificatePath    = '/etc/app/tenant42.pfx'
 tenant_42.grails.mail.oAuth.certificatePassword = '...'
 ```
 
-Tenants may mix secret and certificate credentials. Admin consent (step 6) is per Entra tenant.
+Tenants may mix interactive and daemon flows and secret and certificate credentials. Admin consent (step 6) is per Entra tenant.
 
 ### Validation performed at startup
 

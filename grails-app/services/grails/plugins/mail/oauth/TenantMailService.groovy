@@ -94,7 +94,7 @@ class TenantMailService {
                 mailOAuthService,
                 graphApiClient,
                 MailOAuthUtil.attachmentMax(),
-                MailOAuthUtil.isDaemon())
+                MailOAuthUtil.isDaemon(cfg))
     }
 
     MailConfigurationProperties toMailProperties(ConfigObject config) {

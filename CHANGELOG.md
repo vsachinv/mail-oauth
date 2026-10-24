@@ -13,7 +13,8 @@ Versions correspond to the `version` property in `gradle.properties` and the art
 - Tests: `CertificateStrategySpec` (JWT header/claims/`x5t`/signature, factory selection) and `AuthModeConfigurationSpec` (real ScribeJava construction for every auth mode on the multi-tenant sender and the reader).
 
 ### Changed
-- Certificate auth is app-only and therefore requires the global `grails.mail.oAuth.daemon=true`; `buildContext` rejects `useCertAuth` without `daemon` with an `IllegalStateException`.
+- **`daemon` is now resolved per tenant**: `tenant_<id>.grails.mail.oAuth.daemon` overrides the global `grails.mail.oAuth.daemon`, which remains the fallback (`MailOAuthUtil.isDaemon(ConfigObject)`). Individual tenants can choose app-only or interactive auth. Used by `MailOAuthService.buildContext` and the Graph sender created in `TenantMailService`.
+- Certificate auth is app-only and therefore requires the tenant's effective `daemon=true`; `buildContext` rejects `useCertAuth` without `daemon` with an `IllegalStateException`.
 - ScribeJava `OAuth20Service` is built without `apiSecret` when no secret is configured (ScribeJava rejects an empty secret), so certificate-only tenants can still use revoke and the admin-consent callback.
 - `GraphEmailReaderService` and `InMemoryReaderTokenStoreService` treat `useCertAuth` like `daemon` (app-only `users/{email}` access, automatic token acquisition).
 

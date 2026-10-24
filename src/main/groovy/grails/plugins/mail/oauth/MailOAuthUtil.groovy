@@ -36,6 +36,20 @@ class MailOAuthUtil {
     static Boolean isDaemon() {
         Holders.config.getProperty('grails.mail.oAuth.daemon', Boolean, false)
     }
+
+    /**
+     * Effective daemon flag for a tenant: the tenant's own {@code oAuth.daemon} when set in its
+     * resolved mail config, otherwise the global {@code grails.mail.oAuth.daemon}. Lets individual
+     * tenants choose app-only (daemon) or interactive (delegated) auth independently.
+     */
+    @CompileDynamic
+    static Boolean isDaemon(ConfigObject mailCfg) {
+        def tenantValue = mailCfg?.oAuth?.daemon
+        if (tenantValue == null || (tenantValue instanceof ConfigObject && tenantValue.isEmpty())) {
+            return isDaemon()
+        }
+        return Boolean.parseBoolean(String.valueOf(tenantValue))
+    }
     static Long connectionTimeOut() {
         Holders.config.getProperty('grails.mail.oAuth.graph.http.connectTimeout', Long, 30L)
     }

@@ -127,6 +127,54 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         certCtx.tenantId == 11L
     }
 
+    void "tenant daemon flag overrides the global one: #label"() {
+        given:
+        globals(globalDaemon)
+        Map oAuth = [secret_val: 's']
+        if (tenantDaemon != null) oAuth.daemon = tenantDaemon
+
+        when:
+        TenantOAuthContext ctx = service.buildContext(tenantCfg(oAuth), 20L)
+
+        then:
+        ctx.daemon == expected
+
+        where:
+        label                              | globalDaemon | tenantDaemon || expected
+        'tenant true wins over global false' | false      | true         || true
+        'tenant false wins over global true' | true       | false        || false
+        'tenant unset falls back to global'  | true       | null         || true
+        'tenant string value is parsed'      | false      | 'true'       || true
+    }
+
+    void "certificate tenant can be daemon while global daemon is false"() {
+        given:
+        globals(false)
+        TenantIdContext.setTenantId(21L)
+        ConfigObject cfg = tenantCfg(daemon: true, useCertAuth: true, certificatePath: '/tmp/t21.pfx')
+        resolver.resolve(21L) >> cfg
+
+        when:
+        TenantOAuthContext ctx = service.buildContext(cfg, 21L)
+
+        then:
+        ctx.daemon
+        ctx.authStrategy instanceof CertificateStrategy
+        service.generateAuthCodeURL().startsWith('https://login.microsoftonline.com/entra-tenant/adminconsent')
+    }
+
+    void "sender rejects certificate auth when the tenant's effective daemon is false"() {
+        given:
+        globals(true)
+
+        when:
+        service.buildContext(tenantCfg(daemon: false, useCertAuth: true, certificatePath: '/tmp/c.pfx'), 22L)
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message.contains('useCertAuth')
+    }
+
     void "sender rejects certificate auth when daemon is false"() {
         given:
         globals(false)

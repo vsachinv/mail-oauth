@@ -147,7 +147,7 @@ Response is parsed and returned as `OAuth2AccessToken`.
 First release of certificate-based authentication on the multi-tenant line.
 
 - **Per-tenant credential.** Each tenant's `<tenant>.grails.mail.oAuth` block chooses its own credential: `secret_val` (default) or `useCertAuth: true` with `certificatePath`, `certificatePassword` and optional `certificateAlias`. Tenants may mix credential types in one deployment.
-- **Daemon is global.** `grails.mail.oAuth.daemon` continues to apply to all tenants. Certificate auth is app-only, so `useCertAuth` with `daemon=false` fails at context build with an `IllegalStateException`.
+- **Daemon is per tenant.** `tenant_<id>.grails.mail.oAuth.daemon` overrides the global `grails.mail.oAuth.daemon`, which remains the fallback (`MailOAuthUtil.isDaemon(ConfigObject)`). A tenant can run app-only while another runs interactive. Certificate auth is app-only, so `useCertAuth` with an effective `daemon=false` fails at context build with an `IllegalStateException`.
 - **Strategy on the tenant context.** `TenantOAuthContext.authStrategy` holds the resolved `GraphAuthStrategy`; `generateAccessToken` and `refreshAccessToken` delegate to it. The admin-consent flow, OAuth state tenant encoding and tenant-keyed token store are unchanged.
 - **ScribeJava without secret.** The `OAuth20Service` is still built for certificate tenants (used by revoke and the admin-consent callback) but `apiSecret` is only set when configured, because ScribeJava rejects an empty secret.
 - **Reader.** `GraphConfig` gains the four certificate fields alongside `graphTenantId` / application `tenantId`; `useCertAuth` is treated like `daemon` for app-only mailbox access and automatic token acquisition.
