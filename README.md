@@ -196,7 +196,7 @@ steps, and [design_certificate.md](design_certificate.md) for the strategy desig
 
 The plugin is multi-tenant end to end: a single application instance can send and read mail for many tenants, each with its own Microsoft Entra ID application, credentials, mailbox, and OAuth tokens. Every send, token operation, and reader call is scoped by a **tenant id**.
 
-> 📘 For the full component breakdown, diagrams, token lifecycle, and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
+> 📘 For the end-to-end plugin design with flow diagrams (default tenant vs specific tenants, send flow, token lifecycle), see [`docs/PLUGIN_DESIGN.md`](docs/PLUGIN_DESIGN.md). For the full multi-tenancy component breakdown and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
 
 > 📝 Release history is tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
