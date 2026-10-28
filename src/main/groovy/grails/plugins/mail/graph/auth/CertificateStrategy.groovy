@@ -23,6 +23,7 @@ class CertificateStrategy implements GraphAuthStrategy {
     private final String clientId
     private final String tenantId
     private final String certPath
+    private final String certBase64
     private final String certPassword
     private final String alias
     private final String scopes
@@ -30,9 +31,18 @@ class CertificateStrategy implements GraphAuthStrategy {
     private final OkHttpClient httpClient = new OkHttpClient()
 
     CertificateStrategy(String clientId, String tenantId, String certPath, String certPassword, String alias, String scopes) {
+        this(clientId, tenantId, certPath, null, certPassword, alias, scopes)
+    }
+
+    /**
+     * @param certPath   path to the PFX keystore on disk (used when {@code certBase64} is blank)
+     * @param certBase64 the PFX keystore bytes, base64 encoded (standard or MIME/line-wrapped); takes precedence over {@code certPath}
+     */
+    CertificateStrategy(String clientId, String tenantId, String certPath, String certBase64, String certPassword, String alias, String scopes) {
         this.clientId = clientId
         this.tenantId = tenantId
         this.certPath = certPath
+        this.certBase64 = certBase64?.trim() ?: null
         this.certPassword = certPassword
         this.alias = alias
         this.scopes = scopes
@@ -57,14 +67,11 @@ class CertificateStrategy implements GraphAuthStrategy {
     }
 
     private String buildClientAssertion() {
-        if (!certPath || !new File(certPath).isFile()) {
-            throw new IllegalStateException("Certificate auth is enabled but certificatePath is not set or file does not exist: ${certPath}")
-        }
         if (!scopes) {
             throw new IllegalStateException('Certificate auth is enabled but no scope/api_scope is configured')
         }
         KeyStore keyStore = KeyStore.getInstance('PKCS12')
-        new FileInputStream(certPath).withCloseable { stream ->
+        openKeystore().withCloseable { stream ->
             keyStore.load(stream, certPassword?.toCharArray() ?: new char[0])
         }
 
@@ -72,7 +79,7 @@ class CertificateStrategy implements GraphAuthStrategy {
         PrivateKey privateKey = keyStore.getKey(keyAlias, certPassword?.toCharArray() ?: new char[0]) as PrivateKey
         X509Certificate certificate = keyStore.getCertificate(keyAlias) as X509Certificate
         if (!privateKey || !certificate) {
-            throw new IllegalStateException("No private key/certificate found in ${certPath} for alias '${keyAlias}'")
+            throw new IllegalStateException("No private key/certificate found in ${certificateSource()} for alias '${keyAlias}'")
         }
 
         // RS256 JWT built with the JDK only (no JOSE library): base64url(header).base64url(claims).base64url(signature)
@@ -94,6 +101,39 @@ class CertificateStrategy implements GraphAuthStrategy {
         signer.initSign(privateKey)
         signer.update(signingInput.getBytes(StandardCharsets.US_ASCII))
         return signingInput + '.' + base64Url(signer.sign())
+    }
+
+    /**
+     * Keystore bytes from {@code certificateBase64} when set, otherwise from the file at {@code certificatePath}.
+     * Re-read on every call so a rotated value/file is picked up without a restart. The base64 content is never
+     * included in log or exception messages because it is the private key.
+     */
+    private InputStream openKeystore() {
+        if (certBase64) {
+            if (certPath) {
+                log.debug('[GRAPH_AUTH] [CERTIFICATE] Both certificateBase64 and certificatePath are set; using certificateBase64')
+            }
+            byte[] bytes
+            try {
+                // Strip line breaks/whitespace from wrapped values, then decode strictly so garbage is rejected
+                bytes = Base64.decoder.decode(certBase64.replaceAll(/\s+/, ''))
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException('Certificate auth is enabled but certificateBase64 is not valid base64', e)
+            }
+            if (bytes.length == 0) {
+                throw new IllegalStateException('Certificate auth is enabled but certificateBase64 decoded to zero bytes')
+            }
+            return new ByteArrayInputStream(bytes)
+        }
+        if (!certPath || !new File(certPath).isFile()) {
+            throw new IllegalStateException("Certificate auth is enabled but neither certificateBase64 nor a readable certificatePath is configured (certificatePath=${certPath})")
+        }
+        return new FileInputStream(certPath)
+    }
+
+    /** Human-readable name of the keystore source for error messages; never the content. */
+    private String certificateSource() {
+        certBase64 ? 'certificateBase64' : certPath
     }
 
     private static String base64Url(byte[] bytes) {

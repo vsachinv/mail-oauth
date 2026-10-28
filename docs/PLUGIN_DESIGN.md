@@ -232,7 +232,7 @@ flowchart TD
 |---|---|---|---|---|---|
 | Interactive (delegated) | `daemon=false`, `secret_val` | User signs in via `/mailOAuth/generate` | Auth-code exchange in `/mailOAuth/callback` | `refresh_token` grant | `/me/sendMail` |
 | Daemon, client secret | `daemon=true`, `secret_val` | Admin consent (URL from `/mailOAuth/generate`, or portal/CLI) | `client_credentials` grant | Re-acquire with `client_credentials` | `/users/{from}/sendMail` |
-| Daemon, certificate | `daemon=true`, `useCertAuth=true`, `certificatePath` | Admin consent (same as above) | `client_credentials` with signed JWT `client_assertion` | Re-sign JWT, re-acquire | `/users/{from}/sendMail` |
+| Daemon, certificate | `daemon=true`, `useCertAuth=true`, `certificatePath` or `certificateBase64` | Admin consent (same as above) | `client_credentials` with signed JWT `client_assertion` | Re-sign JWT, re-acquire | `/users/{from}/sendMail` |
 
 ### 5.3 How `daemon` is resolved
 
@@ -322,7 +322,7 @@ effectively a local clear.
 | Graph client | `TenantGraphClientRegistryService` | `tenantId` + signature of `enabled`, `graph.enabled`, `client_id`, `tenant_id` | Rebuilt under a per-tenant lock when the signature changes |
 | Thread pool | `TenantMailExecutorRegistry` | `tenantId` | Created on first send with `poolSize` (default 5); idle threads time out; all shut down on context destroy |
 | `TenantOAuthContext` / auth strategy | `MailOAuthService.buildContext` | none | Per call, never cached |
-| Certificate keystore | `CertificateStrategy` | none | Re-read from disk on every token acquisition (rotation without restart) |
+| Certificate keystore | `CertificateStrategy` | none | Re-read from `certificateBase64` or the file at `certificatePath` on every token acquisition (rotation without restart) |
 
 A tenant's slow or failing mailbox cannot block another tenant's queue, and a token for tenant A is
 never presented for tenant B because the tenant id travels with the task via

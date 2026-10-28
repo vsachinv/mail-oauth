@@ -126,7 +126,7 @@ Response is parsed and returned as `OAuth2AccessToken`.
 |---|---|
 | `grails-app/services/grails/plugins/mail/oauth/MailOAuthService.groovy` | Replaced `oAuth20Service` + cert fields with `GraphAuthStrategy`; delegates acquire/refresh to strategy |
 | `src/main/groovy/grails/plugins/mail/graph/token/InMemoryReaderTokenStoreService.groovy` | `refreshTokenFor`, `generateAuthCodeURLFor` delegate to strategy; `getTokenFor` treats `useCertAuth` same as `daemon` |
-| `src/main/groovy/grails/plugins/mail/graph/GraphConfig.groovy` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` |
+| `src/main/groovy/grails/plugins/mail/graph/GraphConfig.groovy` | Added `useCertAuth`, `certificatePath`, `certificateBase64`, `certificatePassword`, `certificateAlias` |
 | `grails-app/conf/application.yml` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` config keys |
 
 ### Multi-tenant line (7.6.0-M3) — additional changes
@@ -147,6 +147,7 @@ Response is parsed and returned as `OAuth2AccessToken`.
 First release of certificate-based authentication on the multi-tenant line.
 
 - **Per-tenant credential.** Each tenant's `<tenant>.grails.mail.oAuth` block chooses its own credential: `secret_val` (default) or `useCertAuth: true` with `certificatePath`, `certificatePassword` and optional `certificateAlias`. Tenants may mix credential types in one deployment.
+- **Keystore as base64.** `certificateBase64` (sender config and `GraphConfig`) supplies the PFX bytes inline instead of a file path, for deployments that inject secrets from a vault. Whitespace/line wrapping is tolerated, decoding is strict, and the value never appears in logs or error messages. When both keys are set `certificateBase64` wins. `CertificateStrategy` gained a 7-argument constructor; the 6-argument one is kept.
 - **Daemon is per tenant.** `tenant_<id>.grails.mail.oAuth.daemon` is read from the tenant's own config; unset or empty means `false`, with no fallback to the global `grails.mail.oAuth.daemon` (`MailOAuthUtil.isDaemon(ConfigObject)`). The default tenant uses the global `grails.mail` block. A tenant can run app-only while another runs interactive. Certificate auth is app-only, so `useCertAuth` with an effective `daemon=false` fails at context build with an `IllegalStateException`.
 - **Strategy on the tenant context.** `TenantOAuthContext.authStrategy` holds the resolved `GraphAuthStrategy`; `generateAccessToken` and `refreshAccessToken` delegate to it. The admin-consent flow, OAuth state tenant encoding and tenant-keyed token store are unchanged.
 - **ScribeJava without secret.** The `OAuth20Service` is still built for certificate tenants (used by revoke and the admin-consent callback) but `apiSecret` is only set when configured, because ScribeJava rejects an empty secret.
@@ -177,6 +178,7 @@ grails:
       tenant_id: <azure-tenant-id>
       api_scope: https://graph.microsoft.com/.default
       certificatePath: /path/to/keystore.pfx
+      # certificateBase64: <base64 of the PFX bytes>   # alternative to certificatePath; takes precedence
       certificatePassword: <pfx-password>
       certificateAlias: <key-alias>   # optional; first alias used if omitted
       graph:

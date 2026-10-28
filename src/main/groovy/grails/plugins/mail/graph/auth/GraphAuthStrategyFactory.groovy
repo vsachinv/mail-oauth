@@ -21,6 +21,7 @@ class GraphAuthStrategyFactory {
                     str(oAuth.get('client_id')),
                     str(oAuth.get('tenant_id')),
                     str(oAuth.get('certificatePath')),
+                    str(oAuth.get('certificateBase64')),
                     str(oAuth.get('certificatePassword')),
                     str(oAuth.get('certificateAlias')),
                     str(oAuth.get('api_scope'))
@@ -36,6 +37,7 @@ class GraphAuthStrategyFactory {
                     graphConfig.clientId,
                     graphConfig.graphTenantId,
                     graphConfig.certificatePath,
+                    graphConfig.certificateBase64,
                     graphConfig.certificatePassword,
                     graphConfig.certificateAlias,
                     graphConfig.scopes

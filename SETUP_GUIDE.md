@@ -123,6 +123,16 @@ A certificate issued by your internal CA works the same way; only the public par
 - The PFX password goes into a secrets manager or environment variable, not source control.
 - Keep the alias (`mailcert` above) handy for `certificateAlias`. If the keystore has a single entry the alias is optional.
 
+**Alternative: no file on disk.** Instead of deploying the PFX, store its base64-encoded bytes in your secrets manager
+and inject them as `certificateBase64`. The value may be line-wrapped; it takes precedence over `certificatePath`.
+
+```bash
+base64 -w0 mail-oauth.pfx > mail-oauth.pfx.b64        # Linux
+base64 -i mail-oauth.pfx | tr -d '\n' > mail-oauth.pfx.b64   # macOS
+```
+
+Treat the encoded value exactly like the private key it is: never commit it, never log it.
+
 ---
 
 ## 5. Configure the plugin
@@ -144,6 +154,7 @@ grails:
       api_scope: https://graph.microsoft.com/.default
       callback_url: https://app.company.com/mailOAuth/callback
       certificatePath: /etc/app/mail-oauth.pfx
+      # certificateBase64: ${MAIL_OAUTH_PFX_B64}  # alternative to certificatePath; wins when both are set
       certificatePassword: ${MAIL_OAUTH_PFX_PASSWORD}
       certificateAlias: mailcert                 # optional
       graph:
@@ -212,7 +223,8 @@ Tenants may mix interactive and daemon flows and secret and certificate credenti
 
 - `daemon: true` without `grails.mail.username` → startup fails.
 - `useCertAuth: true` without `daemon: true` → startup fails (certificate auth is always app-only).
-- Missing or unreadable `certificatePath` → first token request fails with a clear `IllegalStateException`.
+- Neither `certificateBase64` nor a readable `certificatePath` → first token request fails with a clear `IllegalStateException`.
+- `certificateBase64` that is not valid base64 → `IllegalStateException` (the value itself is never echoed).
 
 ---
 
@@ -246,7 +258,9 @@ Common errors:
 | `AADSTS7000215: Invalid client secret` | Wrong or expired `secret_val` |
 | `AADSTS65001` / `Insufficient privileges` | Admin consent missing, or Delegated instead of Application permission |
 | `ErrorAccessDenied` from Graph on send | Mailbox blocked by an Application Access Policy, or `username` is not a real mailbox |
-| `certificatePath is not set or file does not exist` | Path wrong or file not readable by the app user |
+| `neither certificateBase64 nor a readable certificatePath is configured` | Path wrong, file not readable by the app user, or base64 value empty |
+| `certificateBase64 is not valid base64` | Value corrupted or wrapped in quotes/PEM headers; re-encode the PFX bytes only |
+| `IOException` on keystore load with `certificateBase64` | Value decodes but is not a PKCS#12 keystore, or wrong `certificatePassword` |
 | `No private key/certificate found ... for alias` | `certificateAlias` does not match an entry in the PFX |
 
 ---
@@ -256,8 +270,9 @@ Common errors:
 **Certificate**
 
 1. Create a new PFX and upload its `.cer` to Azure alongside the old one.
-2. Replace the file at `certificatePath` (and the password if it changed). The plugin reads the keystore on every
-   token acquisition, so no restart is needed.
+2. Replace the file at `certificatePath`, or the `certificateBase64` value in your secret store (and the password if
+   it changed). The plugin reads the keystore on every token acquisition, so no restart is needed when the
+   configuration source is re-read; a value baked into a static config file still needs the usual config reload.
 3. After the old token lifetime (about 1 hour) remove the old certificate from Azure.
 
 **Secret**

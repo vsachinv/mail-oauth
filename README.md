@@ -151,6 +151,7 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 | `grails.mail.oAuth.daemon`                      | App-only client-credentials flow (no user login). Per tenant: `tenant_<id>.grails.mail.oAuth.daemon`, unset means `false` (no global fallback); the default tenant uses the global value | `false` |
 | `grails.mail.oAuth.useCertAuth`                 | Use a PFX certificate (JWT client assertion) instead of `secret_val`; requires `daemon=true`; per tenant | `false`  |
 | `grails.mail.oAuth.certificatePath`             | Path to the PFX (PKCS#12) keystore; per tenant       | *(configure per environment)*                      |
+| `grails.mail.oAuth.certificateBase64`           | PFX bytes base64 encoded (line-wrapped OK); takes precedence over `certificatePath`; per tenant. It is the private key: inject from a vault/env, never commit | *(optional)* |
 | `grails.mail.oAuth.certificatePassword`         | PFX password; per tenant                             | *(configure per environment -- do not commit)*     |
 | `grails.mail.oAuth.certificateAlias`            | Key alias inside the PFX (first alias if omitted)    | *(optional)*                                       |
 | `grails.mail.oAuth.token.refresh.frequency`     | Token refresh check frequency (seconds)              | `300`                                              |
@@ -182,12 +183,18 @@ tenant_42.grails.mail.oAuth.client_id         = '...'
 tenant_42.grails.mail.oAuth.tenant_id         = '<tenant42-entra-directory-id>'
 tenant_42.grails.mail.oAuth.useCertAuth       = true
 tenant_42.grails.mail.oAuth.certificatePath   = '/etc/app/tenant42.pfx'
+// or, instead of a file on disk, the PFX content from a secret store:
+// tenant_42.grails.mail.oAuth.certificateBase64 = System.getenv('TENANT42_PFX_B64')
 tenant_42.grails.mail.oAuth.certificatePassword = '...'   // externalize; never commit
 tenant_42.grails.mail.oAuth.certificateAlias  = 'mailcert' // optional
 ```
 
+The keystore can be supplied either as a file (`certificatePath`) or inline as base64 (`certificateBase64`, produced
+with `base64 -w0 keystore.pfx` on Linux or `base64 -i keystore.pfx | tr -d '\n'` on macOS). When both are set the
+base64 value wins. Either way the keystore is re-read on every token acquisition, so rotation needs no restart.
+
 Tenants may mix flows and credential types: one tenant interactive with `secret_val`, another daemon with `useCertAuth`. The reader takes the
-same options per mailbox on `GraphConfig` (`useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias`).
+same options per mailbox on `GraphConfig` (`useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateAlias`).
 See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the Entra ID registration, certificate creation, admin consent and rotation
 steps, and [design_certificate.md](design_certificate.md) for the strategy design.
 

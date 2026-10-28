@@ -148,6 +148,20 @@ class AuthModeConfigurationSpec extends Specification implements ServiceUnitTest
         'tenant string value is parsed'         | false        | 'true'       || true
     }
 
+    void "tenant configured with certificateBase64 instead of a path selects CertificateStrategy"() {
+        given:
+        globals(false)
+        ConfigObject cfg = tenantCfg(daemon: true, useCertAuth: true, certificateBase64: 'AAAA', certificatePassword: 'pw')
+
+        when:
+        TenantOAuthContext ctx = service.buildContext(cfg, 23L)
+
+        then:
+        ctx.authStrategy instanceof CertificateStrategy
+        ctx.daemon
+        ctx.oauthService.apiSecret == null
+    }
+
     void "certificate tenant can be daemon while global daemon is false"() {
         given:
         globals(false)

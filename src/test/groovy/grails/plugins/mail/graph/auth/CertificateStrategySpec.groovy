@@ -98,4 +98,85 @@ class CertificateStrategySpec extends Specification {
         def e = thrown(IllegalStateException)
         e.message.contains('certificatePath')
     }
+
+    private String expectedThumbprint() {
+        KeyStore ks = KeyStore.getInstance('PKCS12')
+        pfx.withInputStream { ks.load(it, password.toCharArray()) }
+        X509Certificate cert = ks.getCertificate(alias) as X509Certificate
+        Base64.urlEncoder.withoutPadding().encodeToString(MessageDigest.getInstance('SHA-1').digest(cert.encoded))
+    }
+
+    private static Map jwtHeader(String assertion) {
+        new JsonSlurper().parseText(new String(Base64.urlDecoder.decode(assertion.split('\\.')[0]), 'UTF-8')) as Map
+    }
+
+    void "base64-encoded keystore produces the same signed assertion as the file: #label"() {
+        given:
+        String encoded = encode(pfx.bytes)
+        def strategy = new CertificateStrategy('c', 't', path, encoded, password, alias, 's')
+
+        when:
+        String assertion = strategy.buildClientAssertion()
+        String[] parts = assertion.split('\\.')
+        KeyStore ks = KeyStore.getInstance('PKCS12')
+        pfx.withInputStream { ks.load(it, password.toCharArray()) }
+        Signature verifier = Signature.getInstance('SHA256withRSA')
+        verifier.initVerify((ks.getCertificate(alias) as X509Certificate).publicKey)
+        verifier.update("${parts[0]}.${parts[1]}".getBytes('US-ASCII'))
+
+        then:
+        jwtHeader(assertion).x5t == expectedThumbprint()
+        verifier.verify(Base64.urlDecoder.decode(parts[2]))
+
+        where:
+        label                                   | encode                                                     | path
+        'standard base64, no path'              | { byte[] b -> Base64.encoder.encodeToString(b) }           | null
+        'MIME line-wrapped base64, no path'     | { byte[] b -> Base64.mimeEncoder.encodeToString(b) }       | null
+        'base64 wins over a bogus path'         | { byte[] b -> Base64.encoder.encodeToString(b) }           | '/does/not/exist.pfx'
+        'surrounding whitespace is trimmed'     | { byte[] b -> "  \n" + Base64.encoder.encodeToString(b) + "\n " } | null
+    }
+
+    void "invalid base64 fails without echoing the value"() {
+        given:
+        String bad = 'not*valid*base64!!'
+
+        when:
+        new CertificateStrategy('c', 't', null, bad, password, alias, 's').buildClientAssertion()
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message.contains('certificateBase64')
+        !e.message.contains(bad)
+    }
+
+    void "base64 of something that is not a PKCS12 keystore fails at keystore load"() {
+        when:
+        new CertificateStrategy('c', 't', null, Base64.encoder.encodeToString('hello'.bytes), password, alias, 's').buildClientAssertion()
+
+        then:
+        thrown(IOException)
+    }
+
+    void "neither certificateBase64 nor certificatePath gives a clear error"() {
+        when:
+        new CertificateStrategy('c', 't', null, null, password, alias, 's').buildClientAssertion()
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message.contains('certificateBase64')
+        e.message.contains('certificatePath')
+    }
+
+    void "reader GraphConfig with certificateBase64 selects CertificateStrategy and signs"() {
+        given:
+        GraphConfig cfg = new GraphConfig(useCertAuth: true, clientId: 'c', graphTenantId: 't', scopes: 's',
+                certificateBase64: Base64.encoder.encodeToString(pfx.bytes), certificatePassword: password)
+
+        when:
+        def strategy = GraphAuthStrategyFactory.build(cfg)
+
+        then:
+        strategy instanceof CertificateStrategy
+        jwtHeader(((CertificateStrategy) strategy).buildClientAssertion()).x5t == expectedThumbprint()
+    }
 }
