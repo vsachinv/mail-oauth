@@ -88,6 +88,20 @@ class AuthModeConfigurationSpec extends Specification {
         service.generateAuthCodeURL().startsWith('https://login.microsoftonline.com/tenant-id/adminconsent')
     }
 
+    void "sender configured with certificateBase64 instead of a path selects CertificateStrategy"() {
+        when:
+        MailOAuthService service = senderService([
+                'grails.mail.oAuth.daemon'           : true,
+                'grails.mail.oAuth.useCertAuth'      : true,
+                'grails.mail.oAuth.certificateBase64': 'AAAA',
+                'grails.mail.oAuth.certificatePassword': 'pw',
+        ])
+
+        then:
+        service.@authStrategy instanceof CertificateStrategy
+        scribeService(service).apiSecret == null
+    }
+
     void "sender rejects certificate auth when daemon is false"() {
         when:
         senderService(['grails.mail.oAuth.useCertAuth': true, 'grails.mail.oAuth.certificatePath': '/tmp/cert.pfx'])

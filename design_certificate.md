@@ -126,7 +126,7 @@ Response is parsed and returned as `OAuth2AccessToken`.
 |---|---|
 | `grails-app/services/grails/plugins/mail/oauth/MailOAuthService.groovy` | Replaced `oAuth20Service` + cert fields with `GraphAuthStrategy`; delegates acquire/refresh to strategy |
 | `src/main/groovy/grails/plugins/mail/graph/token/InMemoryReaderTokenStoreService.groovy` | `refreshTokenFor`, `generateAuthCodeURLFor` delegate to strategy; `getTokenFor` treats `useCertAuth` same as `daemon` |
-| `src/main/groovy/grails/plugins/mail/graph/GraphConfig.groovy` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` |
+| `src/main/groovy/grails/plugins/mail/graph/GraphConfig.groovy` | Added `useCertAuth`, `certificatePath`, `certificateBase64`, `certificatePassword`, `certificateAlias` |
 | `grails-app/conf/application.yml` | Added `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias` config keys |
 
 ---
@@ -146,6 +146,7 @@ grails:
       tenant_id: <azure-tenant-id>
       api_scope: https://graph.microsoft.com/.default
       certificatePath: /path/to/keystore.pfx
+      # certificateBase64: <base64 of the PFX bytes>   # alternative to certificatePath; takes precedence
       certificatePassword: <pfx-password>
       certificateAlias: <key-alias>   # optional; first alias used if omitted
       graph:
@@ -170,6 +171,14 @@ GraphConfig config = new GraphConfig(
 ```
 
 ---
+
+## Keystore as base64 (`certificateBase64`)
+
+`certificateBase64` (sender config and `GraphConfig`) supplies the PFX bytes inline instead of a file path, for
+deployments that inject secrets from a vault or environment. Whitespace and line wrapping are tolerated, decoding is
+strict (garbage is rejected with `IllegalStateException`), and the value never appears in logs or error messages.
+When both keys are set `certificateBase64` wins. `CertificateStrategy` gained a 7-argument constructor
+(`clientId, tenantId, certPath, certBase64, certPassword, alias, scopes`); the 6-argument one is kept.
 
 ## Azure AD Registration Requirements
 

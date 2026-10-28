@@ -20,6 +20,7 @@ class GraphConfig implements Serializable {
     boolean debug = false
     boolean useCertAuth = false
     String certificatePath        // path to PFX (PKCS12) keystore holding the private key + certificate
+    String certificateBase64      // PFX bytes base64 encoded; takes precedence over certificatePath. Private key: never log it
     String certificatePassword    // PFX password (optional if the keystore has none)
     String certificateAlias       // key alias inside the PFX; first alias is used if omitted
 }
