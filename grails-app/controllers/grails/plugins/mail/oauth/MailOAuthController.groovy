@@ -93,13 +93,19 @@ class MailOAuthController implements GrailsConfigurationAware {
         log.info("[GRAPH_EMAIL] [SEND_TEST_MAIL] - Attempting to send test mail to ${email}")
         try {
             new InternetAddress(email).validate()
-            sendMail {
+            def sent = sendMail {
                 multipart false
                 to email
                 subject 'test email'
                 body "test mail created at ${new Date()}"
             }
-            flash.message = "Test mail sent to ${email}"
+            if (sent == null) {
+                // Grails Mail's MailService returns null when grails.mail.disabled is set
+                log.warn("[GRAPH_EMAIL] [SEND_TEST_MAIL] [DISABLED] - Mail sending is disabled by configuration; test mail to ${email} not sent")
+                flash.warn = "Mail sending is disabled by configuration. Test mail was not sent."
+            } else {
+                flash.message = "Test mail sent to ${email}"
+            }
         } catch(AddressException addressException) {
             log.error("GRAPH_EMAIL] [SEND_TEST_MAIL] - Invalid email address : ${email} reveived. Test mail failed with error: ", addressException)
             flash.error = "Test mail failed due to invalid email address. Please enter valid email address."
