@@ -171,7 +171,7 @@ keys are bound but not used for the connection.
 | global `grails.mail.host` / `port` / `username` / `password` / `props` | yes | **These are what the mail actually goes through.** They configure the global `JavaMailSender` |
 | tenant `host` / `port` / `username` / `password` / `props` | ignored for the connection | Bound into `MailConfigurationProperties` but the global sender bean is used regardless |
 | tenant `default.from`, `overrideAddress` | honoured | Read by the builder from the tenant's bound properties |
-| tenant `disabled` | honoured | `sendMail` returns `null` |
+| tenant `disabled` | honoured | `sendMail` returns `null`. **The fallback to the global sender does not happen**: the check runs before any builder is chosen |
 | tenant `poolSize` | honoured | Size of this tenant's dispatch executor |
 
 What this means in practice:
@@ -184,6 +184,11 @@ What this means in practice:
   isolation of *dispatch* holds; isolation of *transport* does not.
 - Per-tenant plain-SMTP credentials are therefore **not supported today**. Use an OAuth mode
   (A, B or C) when a tenant needs its own mailbox or relay.
+- `tenant_<id>.grails.mail.disabled = true` switches this tenant off **completely**, including the
+  fallback to the global `mailSender`. `TenantMailService` evaluates `disabled` right after
+  resolving the tenant config and returns `null` before `resolveBuilder` runs, so neither the global
+  SMTP sender nor any executor is touched. This is the supported way to stop a tenant from sending
+  through the shared relay.
 
 ```groovy
 // global: the relay every non-OAuth tenant uses
@@ -238,3 +243,6 @@ tenant_45.grails.mail.oAuth.enabled  = false
 | `disabled=true` on the tenant | `sendMail` returns `null`; `/mailOAuth/sendTestMail` shows "Mail sending is disabled by configuration for this tenant" |
 | `oAuth.enabled=false` with tenant-specific `host`/`username` (D) | No error. Mail leaves through the **global** SMTP relay and account; the tenant's SMTP keys are ignored |
 | `oAuth.enabled=false` and no global SMTP settings (D) | Connection/authentication error from the global `JavaMailSender` at dispatch |
+
+> `disabled` is evaluated before the sender is chosen, so it stops **every** path for that tenant:
+> Graph, OAuth SMTP and the plain-SMTP fallback to the global `mailSender` alike.

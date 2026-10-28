@@ -139,10 +139,10 @@ class TenantMailServiceSpec extends Specification implements ServiceUnitTest<Ten
         result != null
     }
 
-    void "sendMail returns null and touches nothing when the tenant's mail is disabled"() {
+    void "sendMail returns null and touches nothing when the tenant's mail is disabled: #label"() {
         given:
         Long tenantId = 8L
-        ConfigObject cfg = config(true, true)
+        ConfigObject cfg = config(oauth, graph)
         cfg.disabled = true
 
         when:
@@ -158,6 +158,12 @@ class TenantMailServiceSpec extends Specification implements ServiceUnitTest<Ten
         0 * executorRegistry._
         result == null
         TenantIdContext.getTenantId() == null
+
+        where:
+        label                                  | oauth | graph
+        'Graph tenant'                         | true  | true
+        'OAuth SMTP tenant'                    | true  | false
+        'OAuth disabled (global SMTP fallback)'| false | false
     }
 
     void "sendMail propagates the failure when no configuration can be resolved for the tenant"() {
