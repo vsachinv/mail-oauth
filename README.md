@@ -50,6 +50,7 @@ Replace the four certificate keys with `secret_val: <client-secret>` to use a cl
 | `certificatePath` / `certificatePassword` / `certificateAlias` | PFX keystore location, password and key alias |
 | `certificateBase64` | PFX bytes base64 encoded (line-wrapped OK), for vault/env-injected secrets; takes precedence over `certificatePath`. It is the private key: never commit or log it |
 | `client_id` / `tenant_id` / `secret_val` | Azure app credentials |
+| `grails.mail.disabled` (top level, not under `oAuth`) | Standard Grails Mail switch: `sendMail` logs "Sending emails disabled by configuration option" and returns `null`. This plugin only swaps the sender/builder beans, so the check in Grails Mail's `MailService` still applies to every send |
 | `api_scope` | OAuth scopes |
 | `callback_url` | Redirect URI registered in Azure, used for consent and interactive login |
 

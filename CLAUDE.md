@@ -29,6 +29,7 @@ This is a Grails 6 plugin (`org.grails.plugins:mail-oauth`) that extends the `gr
 
 **Two send paths:**
 - **Graph API sender** (`grails.mail.oAuth.graph.enabled: true`): `GraphMailSenderImpl` → `GraphApiClient` (wraps `microsoft-graph` SDK's `GraphServiceClient`) → Microsoft Graph REST API. Used for sending via Graph instead of SMTP.
+- **Turning mail off**: `grails.mail.disabled = true` is enforced by Grails Mail's own `MailService.sendMail` (logs and returns `null`); the plugin does not bypass it on this line.
 - **OAuth SMTP sender** (`grails.mail.oAuth.enabled: true`, graph disabled): `OAuthMailSenderImpl` wraps the standard JavaMail sender but injects an OAuth2 bearer token as the SMTP password, obtained via `MailOAuthService`.
 
 **Two read paths:**
