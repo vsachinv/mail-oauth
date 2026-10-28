@@ -179,8 +179,21 @@ class MailOAuthControllerSpec extends Specification implements ControllerUnitTes
         controller.sendTestMail('test@example.com')
 
         then:
-        1 * tenantMailService.sendMail(_)
+        1 * tenantMailService.sendMail(_) >> Mock(org.springframework.mail.MailMessage)
         flash.message == 'Test mail sent to test@example.com'
+        !flash.warn
+        response.redirectedUrl == INDEX
+    }
+
+    void "sendTestMail reports disabled when the tenant's mail is switched off"() {
+        when:
+        controller.sendTestMail('test@example.com')
+
+        then:
+        1 * tenantMailService.sendMail(_) >> null
+        flash.warn == 'Mail sending is disabled by configuration for this tenant. Test mail was not sent.'
+        !flash.message
+        !flash.error
         response.redirectedUrl == INDEX
     }
 
