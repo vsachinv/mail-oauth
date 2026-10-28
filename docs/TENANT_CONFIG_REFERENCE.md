@@ -157,29 +157,73 @@ tenant_44.grails.mail.oAuth.secret_val           = System.getenv('TENANT44_CLIEN
 
 ---
 
-## 7. Side-by-side
+## 7. Use case D — OAuth disabled, plain SMTP (falls back to the global mailSender)
 
-| Key | A: certificate daemon | B: secret daemon | C: personal token |
-|---|---|---|---|
-| `oAuth.enabled` | `true` | `true` | `true` |
-| `oAuth.graph.enabled` | `true` | `true` | `true` |
-| `oAuth.client_id` | required | required | required |
-| `oAuth.tenant_id` | required | required | required |
-| `username` | required (send-as mailbox) | required (send-as mailbox) | required (must match signed-in user) |
-| `oAuth.daemon` | `true` | `true` | unset / `false` |
-| `oAuth.useCertAuth` | `true` | — | — |
-| `oAuth.certificatePath` / `certificateBase64` | one required | — | — |
-| `oAuth.certificatePassword` | if PFX has one | — | — |
-| `oAuth.certificateAlias` | optional | — | — |
-| `oAuth.secret_val` | — | required | required |
-| `oAuth.api_scope` in tenant block | **required** | — | — |
-| Entra permission | `Mail.Send` Application + admin consent | `Mail.Send` Application + admin consent | `Mail.Send` Delegated + `offline_access` |
-| First token | lazy on first send, or `/mailOAuth/generate` | lazy on first send, or `/mailOAuth/generate` | user must run `/mailOAuth/generate` |
-| Renewal | re-sign JWT, re-acquire | re-acquire with secret | refresh token |
+A tenant block with `oAuth.enabled` unset or `false` is routed to the standard Grails Mail builder.
+**That builder sends through the single application-wide `mailSender` bean**, which Grails Mail
+creates at startup from the *global* `grails.mail` SMTP settings. The tenant's own SMTP connection
+keys are bound but not used for the connection.
+
+| Key | Mandatory | Notes |
+|---|---|---|
+| `tenant_<id>.grails.mail` block | yes | Must exist, or resolution throws. Any key is enough, for example `username` |
+| `oAuth.enabled` | unset or `false` | |
+| global `grails.mail.host` / `port` / `username` / `password` / `props` | yes | **These are what the mail actually goes through.** They configure the global `JavaMailSender` |
+| tenant `host` / `port` / `username` / `password` / `props` | ignored for the connection | Bound into `MailConfigurationProperties` but the global sender bean is used regardless |
+| tenant `default.from`, `overrideAddress` | honoured | Read by the builder from the tenant's bound properties |
+| tenant `disabled` | honoured | `sendMail` returns `null` |
+| tenant `poolSize` | honoured | Size of this tenant's dispatch executor |
+
+What this means in practice:
+
+- All non-OAuth tenants share **one SMTP relay and one SMTP account**: the global one.
+- There is **no warning** when a tenant sets a different `host` or `username`; the message leaves
+  silently through the global relay. If the global block has no SMTP settings, the send fails at
+  dispatch with a connection or authentication error from the global sender.
+- The tenant id is still propagated to the worker thread and the executor is still per tenant, so
+  isolation of *dispatch* holds; isolation of *transport* does not.
+- Per-tenant plain-SMTP credentials are therefore **not supported today**. Use an OAuth mode
+  (A, B or C) when a tenant needs its own mailbox or relay.
+
+```groovy
+// global: the relay every non-OAuth tenant uses
+grails.mail.host     = 'smtp.company.com'
+grails.mail.port     = 587
+grails.mail.username = 'relay@company.com'
+grails.mail.password = System.getenv('SMTP_RELAY_PASSWORD')
+grails.mail.props    = ['mail.smtp.auth': 'true', 'mail.smtp.starttls.enable': 'true']
+
+// tenant 45: plain SMTP via the global sender; only from/override/disabled/poolSize are per tenant
+tenant_45.grails.mail.default.from   = 'noreply@tenant45.com'
+tenant_45.grails.mail.oAuth.enabled  = false
+```
 
 ---
 
-## 8. What fails, and where, when a key is missing
+## 8. Side-by-side
+
+| Key | A: certificate daemon | B: secret daemon | C: personal token | D: OAuth disabled |
+|---|---|---|---|---|
+| `oAuth.enabled` | `true` | `true` | `true` | unset / `false` |
+| `oAuth.graph.enabled` | `true` | `true` | `true` | — |
+| `oAuth.client_id` | required | required | required | — |
+| `oAuth.tenant_id` | required | required | required | — |
+| `username` | required (send-as mailbox) | required (send-as mailbox) | required (must match signed-in user) | ignored (global SMTP account used) |
+| `oAuth.daemon` | `true` | `true` | unset / `false` | — |
+| `oAuth.useCertAuth` | `true` | — | — | — |
+| `oAuth.certificatePath` / `certificateBase64` | one required | — | — | — |
+| `oAuth.certificatePassword` | if PFX has one | — | — | — |
+| `oAuth.certificateAlias` | optional | — | — | — |
+| `oAuth.secret_val` | — | required | required | — |
+| `oAuth.api_scope` in tenant block | **required** | — | — | — |
+| Transport | Graph, tenant's app | Graph, tenant's app | Graph, user's token | **global `mailSender` bean (global SMTP settings)** |
+| Entra permission | `Mail.Send` Application + admin consent | `Mail.Send` Application + admin consent | `Mail.Send` Delegated + `offline_access` | none |
+| First token | lazy on first send, or `/mailOAuth/generate` | lazy on first send, or `/mailOAuth/generate` | user must run `/mailOAuth/generate` | n/a |
+| Renewal | re-sign JWT, re-acquire | re-acquire with secret | refresh token | n/a |
+
+---
+
+## 9. What fails, and where, when a key is missing
 
 | Missing or wrong | Symptom |
 |---|---|
@@ -192,3 +236,5 @@ tenant_44.grails.mail.oAuth.secret_val           = System.getenv('TENANT44_CLIEN
 | `username` not matching the signed-in user (C) | Callback error "Generated token is not for account …" |
 | `daemon=true` without admin consent | `AADSTS65001` / insufficient privileges on the token request |
 | `disabled=true` on the tenant | `sendMail` returns `null`; `/mailOAuth/sendTestMail` shows "Mail sending is disabled by configuration for this tenant" |
+| `oAuth.enabled=false` with tenant-specific `host`/`username` (D) | No error. Mail leaves through the **global** SMTP relay and account; the tenant's SMTP keys are ignored |
+| `oAuth.enabled=false` and no global SMTP settings (D) | Connection/authentication error from the global `JavaMailSender` at dispatch |
