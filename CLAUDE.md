@@ -38,7 +38,7 @@ Nexus credentials come from `nexusUsername`/`nexusPassword`/`nexusUrl` gradle pr
 **Bean wiring** happens in `src/main/groovy/grails/plugins/mail/oauth/MailOauthGrailsPlugin.groovy#doWithSpring`. This is the map of the plugin — read it first. Reader beans (`graphEmailReaderService`, `imapEmailReaderService`, token stores) are only registered when `grails.mail.reader.enabled` (and the respective `graph`/`imap` sub-flag) is true.
 
 **Sending flow** (`TenantMailService` is the public entry point):
-1. `sendMail { … }` / `sendMailWithTenant(tenantId) { … }` resolves the tenant's config, then `resolveBuilder` picks one of three strategies based on config:
+1. `sendMail { … }` / `sendMailWithTenant(tenantId) { … }` resolves the tenant's config; if `disabled` is true for that tenant (`tenant_<id>.grails.mail.disabled`, global for the default tenant) it logs and returns `null`. Otherwise `resolveBuilder` picks one of three strategies based on config:
    - `oAuth.enabled && oAuth.graph.enabled` → **Graph API** send (`GraphMailSenderImpl`, via `graphMailMessageBuilderFactory`).
    - `oAuth.enabled` only → **OAuth SMTP** (`OAuthMailSenderImpl`).
    - neither → **plain SMTP** via the standard Grails Mail `MailMessageBuilderFactory`.

@@ -159,6 +159,7 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 | `grails.mail.oAuth.redirect.uri`                | URI to redirect to after controller actions          | `/mailOAuth/index`                                 |
 | `grails.mail.oAuth.graph.enabled`               | Send mail via Microsoft Graph API instead of SMTP    | `false`                                            |
 | `grails.mail.oAuth.graph.attachmentMax`         | Maximum attachment size (MB)                          | `3`                                                |
+| `grails.mail.disabled`                          | Turns mail sending off: `sendMail` logs a warning and returns `null`. Per tenant: `tenant_<id>.grails.mail.disabled` (default tenant uses the global value; not inherited by other tenants) | `false` |
 | `grails.mail.oAuth.health.check.disabled`       | Disables the OAuth health check                       | `false`                                            |
 | `grails.mail.reader.enabled`                    | Enables the email reader support                      | `false`                                            |
 | `grails.mail.reader.health.check.disabled`      | Disables the reader health check                      | `false`                                            |

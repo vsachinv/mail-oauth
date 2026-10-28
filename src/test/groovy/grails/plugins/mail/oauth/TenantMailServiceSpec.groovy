@@ -139,6 +139,27 @@ class TenantMailServiceSpec extends Specification implements ServiceUnitTest<Ten
         result != null
     }
 
+    void "sendMail returns null and touches nothing when the tenant's mail is disabled"() {
+        given:
+        Long tenantId = 8L
+        ConfigObject cfg = config(true, true)
+        cfg.disabled = true
+
+        when:
+        def result = sendSample()
+
+        then:
+        1 * tenantContext.getCurrentTenantId() >> tenantId
+        1 * configResolver.resolve(tenantId) >> cfg
+        0 * graphClientRegistry._
+        0 * graphFactory._
+        0 * oauthFactory._
+        0 * plainFactory._
+        0 * executorRegistry._
+        result == null
+        TenantIdContext.getTenantId() == null
+    }
+
     void "sendMail propagates the failure when no configuration can be resolved for the tenant"() {
         given:
         Long tenantId = 4L

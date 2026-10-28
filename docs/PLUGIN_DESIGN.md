@@ -161,6 +161,9 @@ sequenceDiagram
     TMS->>TMS: tenantId = tenantContextProvider (or explicit)
     TMS->>RES: resolve(tenantId)
     RES-->>TMS: ConfigObject cfg
+    alt cfg.disabled
+        TMS-->>App: null (warning logged, nothing dispatched)
+    end
     TMS->>TMS: resolveBuilder(cfg) → Graph | OAuth SMTP | plain SMTP
     opt Graph send
         TMS->>GCR: getClient(tenantId, cfg)
@@ -191,7 +194,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    S["cfg = resolve(tenantId)"] --> Q1{"cfg.oAuth.enabled ?"}
+    S["cfg = resolve(tenantId)"] --> Q0{"cfg.disabled ?"}
+    Q0 -- yes --> N["return null, log warning"]
+    Q0 -- no --> Q1{"cfg.oAuth.enabled ?"}
     Q1 -- no --> P["Plain SMTP<br/>Grails Mail MailMessageBuilderFactory<br/>(username/password)"]
     Q1 -- yes --> Q2{"cfg.oAuth.graph.enabled ?"}
     Q2 -- no --> O["OAuth SMTP<br/>OAuthMailSenderImpl<br/>XOAUTH2 with tenant's access token"]

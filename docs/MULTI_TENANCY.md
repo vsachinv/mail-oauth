@@ -175,6 +175,11 @@ tenant_42.grails.mail.oAuth.tenant_id = '<tenant42-entra-directory-id>'
 
 ## 4. Send flow and strategy selection
 
+Before any builder is chosen, `TenantMailService` honours the standard Grails Mail switch per tenant:
+`tenant_<id>.grails.mail.disabled = true` (or `grails.mail.disabled` for the default tenant) makes
+`sendMail` log `[MAIL] [SEND_EMAIL] [DISABLED]` and return `null` without resolving a sender, Graph
+client or executor. Like other non-connection keys it is **not** inherited from the global block.
+
 `TenantMailService` is the public entry point and mirrors the Grails Mail `sendMail` DSL.
 
 ```mermaid
