@@ -7,6 +7,7 @@ deeper on one topic each:
 | Document | Covers |
 |---|---|
 | [`docs/MULTI_TENANCY.md`](MULTI_TENANCY.md) | Tenant context, config merge rules, per-tenant resources in detail |
+| [`docs/TENANT_CONFIG_REFERENCE.md`](TENANT_CONFIG_REFERENCE.md) | Mandatory keys per use case: certificate daemon, secret daemon, personal token |
 | [`../SETUP_GUIDE.md`](../SETUP_GUIDE.md) | Azure app registration, certificate creation, consent, troubleshooting |
 | [`../design_certificate.md`](../design_certificate.md) | Certificate (client-assertion) auth design and release notes |
 | [`../README.md`](../README.md) | Full configuration property reference |
