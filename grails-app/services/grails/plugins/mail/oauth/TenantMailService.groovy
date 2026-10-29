@@ -47,6 +47,13 @@ class TenantMailService {
         ConfigObject cfg = tenantMailConfigResolverService.resolve(tenantId)
 
         MailConfigurationProperties props = toMailProperties(cfg)
+        // Honour the standard Grails Mail switch per tenant (tenant_<id>.grails.mail.disabled, or
+        // grails.mail.disabled for the default tenant). Same contract as grails-mail's MailService:
+        // log and return null without building or dispatching anything.
+        if (props.disabled) {
+            log.warn("[MAIL] [SEND_EMAIL] [DISABLED] Sending emails disabled by configuration option for tenantId={}", tenantId)
+            return null
+        }
         MailMessageBuilder builder = resolveBuilder(tenantId,cfg, props)
         callable.delegate = builder
         callable.resolveStrategy = Closure.DELEGATE_FIRST
@@ -94,7 +101,7 @@ class TenantMailService {
                 mailOAuthService,
                 graphApiClient,
                 MailOAuthUtil.attachmentMax(),
-                MailOAuthUtil.isDaemon())
+                MailOAuthUtil.isDaemon(cfg))
     }
 
     MailConfigurationProperties toMailProperties(ConfigObject config) {

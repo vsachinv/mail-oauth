@@ -62,6 +62,7 @@ class GraphApiClient {
             if (graphConfig.debug) {
                 httpClientBuilder = httpClientBuilder.addInterceptor(new GraphDebugHandler(key))
             }
+            httpClientBuilder = httpClientBuilder.addInterceptor(new ImmutableIdHeaderInterceptor())
             GraphServiceClient graphServiceClient = new GraphServiceClient(authenticationProvider, httpClientBuilder.build())
             cache.put(key, graphServiceClient)
         }

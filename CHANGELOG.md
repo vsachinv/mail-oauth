@@ -3,6 +3,28 @@
 All notable changes to the `mail-oauth` plugin are documented here.
 Versions correspond to the `version` property in `gradle.properties` and the artifacts published to RxLogix Nexus as `org.grails.plugins:mail-oauth:<version>`.
 
+## 7.6.0-M3 — 2026-10-23
+
+### Added
+- **Certificate-based authentication** (PVR-107197) for Microsoft Entra ID token acquisition as an alternative to a client secret, for both the Graph/SMTP sender and the Graph/IMAP reader. A PFX (PKCS#12) private key signs an RS256 JWT client assertion that is posted directly to the token endpoint. Signing uses the JDK `java.security.Signature` API, so **no new dependencies** were introduced.
+- New `GraphAuthStrategy` abstraction (`grails.plugins.mail.graph.auth`) with `SecretKeyStrategy` (existing ScribeJava flow) and `CertificateStrategy`, selected by `GraphAuthStrategyFactory`. `TenantOAuthContext` now carries the resolved strategy.
+- New per-tenant sender config keys under `grails.mail.oAuth` / `tenant_<id>.grails.mail.oAuth`: `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias`. Matching fields on `GraphConfig` for the reader. Tenants may mix credential types.
+- `certificateBase64` (sender config and `GraphConfig`): the PFX keystore bytes base64 encoded, as an alternative to `certificatePath` for vault/environment-injected secrets. Takes precedence over the path; strict decoding; never logged.
+- `SETUP_GUIDE.md` with the Entra ID registration, permission, admin-consent, certificate creation and rotation steps; `design_certificate.md` with the strategy design.
+- Tests: `CertificateStrategySpec` (JWT header/claims/`x5t`/signature, factory selection) and `AuthModeConfigurationSpec` (real ScribeJava construction for every auth mode on the multi-tenant sender and the reader).
+
+### Changed
+- **Per-tenant mail switch.** `TenantMailService.sendMailWithTenant` now honours the standard Grails Mail `disabled` flag (`tenant_<id>.grails.mail.disabled`, or `grails.mail.disabled` for the default tenant): it logs `[MAIL] [SEND_EMAIL] [DISABLED]` and returns `null` without building a sender or dispatching. Previously the flag was bound but ignored because the plugin bypasses grails-mail's `MailService`. `/mailOAuth/sendTestMail` reports "Mail sending is disabled by configuration for this tenant" instead of a success message in that case.
+- **`daemon` is now resolved per tenant**: `tenant_<id>.grails.mail.oAuth.daemon` is read from the tenant's own config; unset or empty means `false`, with no fallback to the global `grails.mail.oAuth.daemon` (`MailOAuthUtil.isDaemon(ConfigObject)`). The default tenant still uses the global `grails.mail` block. Individual tenants can choose app-only or interactive auth. Used by `MailOAuthService.buildContext` and the Graph sender created in `TenantMailService`.
+- Certificate auth is app-only and therefore requires the tenant's effective `daemon=true`; `buildContext` rejects `useCertAuth` without `daemon` with an `IllegalStateException`.
+- ScribeJava `OAuth20Service` is built without `apiSecret` when no secret is configured (ScribeJava rejects an empty secret), so certificate-only tenants can still use revoke and the admin-consent callback.
+- `GraphEmailReaderService` and `InMemoryReaderTokenStoreService` treat `useCertAuth` like `daemon` (app-only `users/{email}` access, automatic token acquisition).
+- **Interactive consent forces a fresh sign-in** (PVCM-135865): `MailOAuthService.generateAuthCodeURL` adds `prompt=login` to the Microsoft authorize URL, so the browser session is not reused when generating a token. Not configurable.
+- **Graph requests ask for immutable ids** (PVCM-130835): `GraphApiClient` registers `ImmutableIdHeaderInterceptor`, which adds `Prefer: IdType="ImmutableId"` to every outbound Graph call. Message ids no longer rotate when a message is flagged, moved or patched. Ids obtained with earlier versions are in the old format and will not match the ids returned now; treat any persisted Graph message ids as stale after upgrading. Always on, not configurable.
+
+### Compatibility notes
+- No behaviour change for existing secret-based tenants (interactive or daemon). `GraphConfig` `serialVersionUID` is unchanged.
+
 ## 7.6.0-M2 — 2026-09-16
 
 ### Changed

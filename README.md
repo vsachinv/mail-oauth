@@ -11,7 +11,7 @@ A Grails plugin that adds the capability to send emails using the Microsoft Grap
 | Groovy              | 4 (managed by `org.apache.grails:grails-bom`)            |
 | Group               | `org.grails.plugins`                                      |
 | Artifact            | `mail-oauth`                                              |
-| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M2`)           |
+| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M3`)           |
 | Repository          | RxLogix Nexus                                             |
 
 > **Grails 7 upgrade note:** This plugin was migrated from Grails 6.2.0 / JDK 11 to Apache Grails 7.0.16 / JDK 17. The Maven group of core dependencies moved to `org.apache.grails`, the Grails Mail plugin is now `org.apache.grails:grails-mail` (7.0.x, Jakarta Mail based, versioned with Grails), and all `javax.*` EE imports became `jakarta.*`.
@@ -22,7 +22,8 @@ Pick the plugin version that matches your host application's Grails major versio
 
 | Plugin version         | Grails    | JDK | Groovy   | Servlet / Mail namespace | Grails Mail plugin                 | Status          |
 |------------------------|-----------|-----|----------|--------------------------|------------------------------------|-----------------|
-| `7.6.0-M2` (current)   | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Active (Grails 7) |
+| `7.6.0-M3` (current)   | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Active (Grails 7) — adds certificate auth |
+| `7.6.0-M2`             | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Superseded by 7.6.0-M3 |
 | `7.6.0-M1`             | 7.0.14    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.grails.plugins:grails-mail` 5.0.3 | Superseded by 7.6.0-M2 |
 | `7.5-JDK11-1.0-M10`    | 6.2.0     | 11  | 3.0.23   | Java EE (`javax.*`)      | `org.grails.plugins:mail` 4.0.0    | Maintenance (last Grails 6.x) |
 
@@ -147,14 +148,56 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 | `grails.mail.oAuth.api_scope`                   | OAuth scopes requested                               | `https://outlook.office.com/SMTP.Send offline_access` |
 | `grails.mail.oAuth.callback_url`                | OAuth redirect/callback URL                          | `http://localhost:9090/mailOAuth/callback`         |
 | `grails.mail.oAuth.tenant_id`                   | Microsoft tenant ID                                  | `common`                                           |
+| `grails.mail.oAuth.daemon`                      | App-only client-credentials flow (no user login). Per tenant: `tenant_<id>.grails.mail.oAuth.daemon`, unset means `false` (no global fallback); the default tenant uses the global value | `false` |
+| `grails.mail.oAuth.useCertAuth`                 | Use a PFX certificate (JWT client assertion) instead of `secret_val`; requires `daemon=true`; per tenant | `false`  |
+| `grails.mail.oAuth.certificatePath`             | Path to the PFX (PKCS#12) keystore; per tenant       | *(configure per environment)*                      |
+| `grails.mail.oAuth.certificateBase64`           | PFX bytes base64 encoded (line-wrapped OK); takes precedence over `certificatePath`; per tenant. It is the private key: inject from a vault/env, never commit | *(optional)* |
+| `grails.mail.oAuth.certificatePassword`         | PFX password; per tenant                             | *(configure per environment -- do not commit)*     |
+| `grails.mail.oAuth.certificateAlias`            | Key alias inside the PFX (first alias if omitted)    | *(optional)*                                       |
 | `grails.mail.oAuth.token.refresh.frequency`     | Token refresh check frequency (seconds)              | `300`                                              |
 | `grails.mail.oAuth.token.refresh.time.difference`| Refresh if token expires within (seconds)           | `600`                                              |
 | `grails.mail.oAuth.redirect.uri`                | URI to redirect to after controller actions          | `/mailOAuth/index`                                 |
 | `grails.mail.oAuth.graph.enabled`               | Send mail via Microsoft Graph API instead of SMTP    | `false`                                            |
 | `grails.mail.oAuth.graph.attachmentMax`         | Maximum attachment size (MB)                          | `3`                                                |
+| `grails.mail.disabled`                          | Turns mail sending off: `sendMail` logs a warning and returns `null`. Per tenant: `tenant_<id>.grails.mail.disabled` (default tenant uses the global value; not inherited by other tenants) | `false` |
 | `grails.mail.oAuth.health.check.disabled`       | Disables the OAuth health check                       | `false`                                            |
 | `grails.mail.reader.enabled`                    | Enables the email reader support                      | `false`                                            |
 | `grails.mail.reader.health.check.disabled`      | Disables the reader health check                      | `false`                                            |
+
+### Certificate-based authentication
+
+Instead of a client secret, a tenant can authenticate with a certificate. The plugin signs an RS256 JWT client
+assertion with the private key from a PFX keystore and Azure verifies it against the uploaded public certificate.
+Certificate auth is app-only, so it requires `daemon = true` for that tenant. `daemon` is resolved per tenant from
+the tenant's own `oAuth.daemon`; unset or empty means `false`, with no fallback to the global `grails.mail.oAuth.daemon`
+(which applies to the default tenant only). One tenant can therefore run app-only with a certificate while another
+uses interactive user sign-in.
+
+```groovy
+grails.mail.oAuth.daemon = false                      // default tenant only (interactive)
+
+tenant_42.grails.mail.username                = 'noreply@tenant42.com'
+tenant_42.grails.mail.oAuth.daemon            = true   // this tenant is app-only
+tenant_42.grails.mail.oAuth.enabled           = true
+tenant_42.grails.mail.oAuth.graph.enabled     = true
+tenant_42.grails.mail.oAuth.client_id         = '...'
+tenant_42.grails.mail.oAuth.tenant_id         = '<tenant42-entra-directory-id>'
+tenant_42.grails.mail.oAuth.useCertAuth       = true
+tenant_42.grails.mail.oAuth.certificatePath   = '/etc/app/tenant42.pfx'
+// or, instead of a file on disk, the PFX content from a secret store:
+// tenant_42.grails.mail.oAuth.certificateBase64 = System.getenv('TENANT42_PFX_B64')
+tenant_42.grails.mail.oAuth.certificatePassword = '...'   // externalize; never commit
+tenant_42.grails.mail.oAuth.certificateAlias  = 'mailcert' // optional
+```
+
+The keystore can be supplied either as a file (`certificatePath`) or inline as base64 (`certificateBase64`, produced
+with `base64 -w0 keystore.pfx` on Linux or `base64 -i keystore.pfx | tr -d '\n'` on macOS). When both are set the
+base64 value wins. Either way the keystore is re-read on every token acquisition, so rotation needs no restart.
+
+Tenants may mix flows and credential types: one tenant interactive with `secret_val`, another daemon with `useCertAuth`. The reader takes the
+same options per mailbox on `GraphConfig` (`useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateAlias`).
+See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the Entra ID registration, certificate creation, admin consent and rotation
+steps, and [design_certificate.md](design_certificate.md) for the strategy design.
 
 > **Security:** Never commit real client secrets to source control. Provide `grails.mail.oAuth.secret_val` (and `client_id`) through externalized/environment configuration per deployment, and rotate any secret that has been committed.
 
@@ -162,7 +205,8 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 
 The plugin is multi-tenant end to end: a single application instance can send and read mail for many tenants, each with its own Microsoft Entra ID application, credentials, mailbox, and OAuth tokens. Every send, token operation, and reader call is scoped by a **tenant id**.
 
-> 📘 For the full component breakdown, diagrams, token lifecycle, and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
+> 📘 For the mandatory keys per use case (certificate daemon, secret daemon, personal token), see [`docs/TENANT_CONFIG_REFERENCE.md`](docs/TENANT_CONFIG_REFERENCE.md).
+> 📘 For the end-to-end plugin design with flow diagrams (default tenant vs specific tenants, send flow, token lifecycle), see [`docs/PLUGIN_DESIGN.md`](docs/PLUGIN_DESIGN.md). For the full multi-tenancy component breakdown and known limitations, see [`docs/MULTI_TENANCY.md`](docs/MULTI_TENANCY.md).
 
 > 📝 Release history is tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
