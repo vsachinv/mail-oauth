@@ -133,6 +133,10 @@ grails:
                     frequency: 300       # every 5 minutes
                     time:
                         difference: 600    # if less than 10 minutes then refresh
+            useCertAuth: false
+            certificatePath:           # path to PFX certificate file
+            certificatePassword:       # password for PFX file
+            certificateAlias:          # alias of the key entry within the PFX keystore
             redirect:
                 uri: /mailOAuth/index
             graph:

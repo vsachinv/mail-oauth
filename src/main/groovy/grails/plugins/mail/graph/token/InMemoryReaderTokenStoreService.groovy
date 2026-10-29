@@ -7,6 +7,8 @@ import com.github.scribejava.core.oauth.OAuth20Service
 import com.github.scribejava.core.revoke.TokenTypeHint
 import grails.plugins.mail.oauth.MailOAuthUtil
 import grails.plugins.mail.graph.GraphConfig
+import grails.plugins.mail.graph.auth.GraphAuthStrategy
+import grails.plugins.mail.graph.auth.GraphAuthStrategyFactory
 import grails.plugins.mail.oauth.token.MemoryTokenStore
 import grails.plugins.mail.oauth.token.OAuthToken
 import groovy.transform.CompileStatic
@@ -26,7 +28,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
     OAuthToken getTokenFor(GraphConfig graphConfig) {
         OAuthToken oAuthToken = this.store.get(graphConfig.configName)?.token
         if (!oAuthToken) {
-            if (graphConfig.daemon) {
+            if (graphConfig.daemon || graphConfig.useCertAuth) {
                 refreshTokenFor(graphConfig)
                 return this.store.get(graphConfig.configName).token
             }
@@ -42,29 +44,31 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
 
     @Override
     void refreshTokenFor(GraphConfig graphConfig) {
-        MemoryTokenStore tokenStore = this.store.get(graphConfig.configName)
+        MemoryTokenStore tokenStore = this.store.computeIfAbsent(graphConfig.configName) { new MemoryTokenStore() }
+        GraphAuthStrategy strategy = GraphAuthStrategyFactory.build(graphConfig)
+        OAuth20Service service = buildOAuthService(graphConfig)
         OAuth2AccessToken token
-        if (graphConfig.daemon) {
+        if (strategy.isDaemon()) {
             if (!graphConfig.emailAddress) {
-                throw new Exception("Graph email has invalid config as daemon is true but emailAddress is not set")
+                throw new Exception("Graph email has invalid config as daemon/certificate auth is true but emailAddress is not set")
             }
-            token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
+            token = strategy.acquireToken(service)
         } else {
-            token = getAuthService(graphConfig).refreshAccessToken(tokenStore.token.refreshToken)
+            token = strategy.refreshToken(service, tokenStore.token.refreshToken)
         }
-        OAuthToken authToken = new OAuthToken(token)
-        tokenStore.saveToken(authToken)
+        tokenStore.saveToken(new OAuthToken(token))
     }
 
     @Override
     String generateAuthCodeURLFor(GraphConfig graphConfig) {
+        GraphAuthStrategy strategy = GraphAuthStrategyFactory.build(graphConfig)
         String state = UUID.randomUUID().toString().replaceAll('-', '')
         configStore.put(state, graphConfig)
-        log.debug("Generated Auth URL for ${graphConfig.configName} with state ${state} ")
-        if (graphConfig.daemon) {
+        log.debug("Generated Auth URL for ${graphConfig.configName} with state ${state}")
+        if (strategy.isDaemon()) {
             return MailOAuthUtil.buildAdminConsentUrl(state, graphConfig.tenantId, graphConfig.clientId, graphConfig.callbackUrl)
         }
-        return getAuthService(graphConfig).getAuthorizationUrl(state)
+        return buildOAuthService(graphConfig).getAuthorizationUrl(state)
     }
 
     @Override
@@ -73,14 +77,16 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
             graphConfig = configStore.get(state)
         log.debug("Retrieved config from state via ${state} for ${graphConfig?.configName}")
         MemoryTokenStore tokenStore = new MemoryTokenStore()
+        GraphAuthStrategy strategy = GraphAuthStrategyFactory.build(graphConfig)
+        OAuth20Service service = buildOAuthService(graphConfig)
         OAuth2AccessToken token
-        if (graphConfig.daemon) {
-            token = getAuthService(graphConfig).getAccessTokenClientCredentialsGrant()
+        if (strategy.isDaemon()) {
+            token = strategy.acquireToken(service)
         } else {
-            token = getAuthService(graphConfig).getAccessToken(code)
+            token = service.getAccessToken(code)
             //TODO need to see what we can do for shared emailAddress validation in case of delegate flow.
             if (graphConfig.emailAddress && !graphConfig.isShared)
-                MailOAuthUtil.validateToken(token.accessToken, graphConfig.emailAddress, getAuthService(graphConfig))
+                MailOAuthUtil.validateToken(token.accessToken, graphConfig.emailAddress, service)
         }
         OAuthToken authToken = new OAuthToken(token)
         tokenStore.saveToken(authToken)
@@ -99,7 +105,7 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         // clear locally stored token
         tokenStore.revokeToken()
 
-        OAuth20Service authService = getAuthService(graphConfig)
+        OAuth20Service authService = buildOAuthService(graphConfig)
 
         // revoke refresh token first (stops future access)
         if (oAuthToken.refreshToken) {
@@ -122,9 +128,13 @@ class InMemoryReaderTokenStoreService implements ReaderTokenStoreService {
         }
     }
 
-    private OAuth20Service getAuthService(GraphConfig graphConfig) {
-        new ServiceBuilder(graphConfig.clientId)
-                .apiSecret(graphConfig.secretId).defaultScope(graphConfig.scopes)
+    private OAuth20Service buildOAuthService(GraphConfig graphConfig) {
+        // ScribeJava rejects an empty apiSecret, so it is only set when configured (absent for certificate auth).
+        ServiceBuilder builder = new ServiceBuilder(graphConfig.clientId)
+        if (graphConfig.secretId) {
+            builder.apiSecret(graphConfig.secretId)
+        }
+        builder.defaultScope(graphConfig.scopes)
                 .callback(graphConfig.callbackUrl)
                 .build(MicrosoftAzureActiveDirectory20Api.custom(graphConfig.tenantId))
     }
