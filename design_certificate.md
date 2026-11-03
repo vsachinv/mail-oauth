@@ -180,6 +180,7 @@ grails:
       certificatePath: /path/to/keystore.pfx
       # certificateBase64: <base64 of the PFX bytes>   # alternative to certificatePath; takes precedence
       certificatePassword: <pfx-password>
+      # certificateKeyPassword: <key-password>   # only if the key entry's password differs from the store password
       certificateAlias: <key-alias>   # optional; first alias used if omitted
       graph:
         enabled: true

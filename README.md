@@ -153,6 +153,7 @@ The plugin ships with default configuration in `grails-app/conf/plugin.groovy`. 
 | `grails.mail.oAuth.certificatePath`             | Path to the PFX (PKCS#12) keystore; per tenant       | *(configure per environment)*                      |
 | `grails.mail.oAuth.certificateBase64`           | PFX bytes base64 encoded (line-wrapped OK); takes precedence over `certificatePath`; per tenant. It is the private key: inject from a vault/env, never commit | *(optional)* |
 | `grails.mail.oAuth.certificatePassword`         | PFX password; per tenant                             | *(configure per environment -- do not commit)*     |
+| `grails.mail.oAuth.certificateKeyPassword`      | Private key entry password, only when it differs from the store password (openssl/BouncyCastle PKCS12, JKS with `-keypass`); defaults to `certificatePassword`; per tenant | *(optional)* |
 | `grails.mail.oAuth.certificateAlias`            | Key alias inside the PFX (first alias if omitted)    | *(optional)*                                       |
 | `grails.mail.oAuth.token.refresh.frequency`     | Token refresh check frequency (seconds)              | `300`                                              |
 | `grails.mail.oAuth.token.refresh.time.difference`| Refresh if token expires within (seconds)           | `600`                                              |
@@ -195,7 +196,7 @@ with `base64 -w0 keystore.pfx` on Linux or `base64 -i keystore.pfx | tr -d '\n'`
 base64 value wins. Either way the keystore is re-read on every token acquisition, so rotation needs no restart.
 
 Tenants may mix flows and credential types: one tenant interactive with `secret_val`, another daemon with `useCertAuth`. The reader takes the
-same options per mailbox on `GraphConfig` (`useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateAlias`).
+same options per mailbox on `GraphConfig` (`useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateKeyPassword`, `certificateAlias`).
 See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the Entra ID registration, certificate creation, admin consent and rotation
 steps, and [design_certificate.md](design_certificate.md) for the strategy design.
 

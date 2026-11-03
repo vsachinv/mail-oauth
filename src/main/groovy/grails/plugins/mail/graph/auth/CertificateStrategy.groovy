@@ -11,6 +11,7 @@ import okhttp3.Request
 import okhttp3.Response
 
 import java.security.KeyStore
+import java.security.UnrecoverableKeyException
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.PrivateKey
@@ -25,6 +26,7 @@ class CertificateStrategy implements GraphAuthStrategy {
     private final String certPath
     private final String certBase64
     private final String certPassword
+    private final String keyPassword
     private final String alias
     private final String scopes
 
@@ -39,11 +41,21 @@ class CertificateStrategy implements GraphAuthStrategy {
      * @param certBase64 the PFX keystore bytes, base64 encoded (standard or MIME/line-wrapped); takes precedence over {@code certPath}
      */
     CertificateStrategy(String clientId, String tenantId, String certPath, String certBase64, String certPassword, String alias, String scopes) {
+        this(clientId, tenantId, certPath, certBase64, certPassword, null, alias, scopes)
+    }
+
+    /**
+     * @param certPassword the keystore (store) password
+     * @param keyPassword  the private key entry password when it differs from the store password (openssl/BouncyCastle
+     *                     built PKCS12, or a JKS keystore with -keypass). Blank means "same as certPassword".
+     */
+    CertificateStrategy(String clientId, String tenantId, String certPath, String certBase64, String certPassword, String keyPassword, String alias, String scopes) {
         this.clientId = clientId
         this.tenantId = tenantId
         this.certPath = certPath
         this.certBase64 = certBase64?.trim() ?: null
         this.certPassword = certPassword
+        this.keyPassword = keyPassword ?: null
         this.alias = alias
         this.scopes = scopes
     }
@@ -76,7 +88,15 @@ class CertificateStrategy implements GraphAuthStrategy {
         }
 
         String keyAlias = alias ?: keyStore.aliases().nextElement()
-        PrivateKey privateKey = keyStore.getKey(keyAlias, certPassword?.toCharArray() ?: new char[0]) as PrivateKey
+        // The key entry may carry its own password (certificateKeyPassword); it defaults to the store password.
+        char[] keyPass = (keyPassword ?: certPassword)?.toCharArray() ?: new char[0]
+        PrivateKey privateKey
+        try {
+            privateKey = keyStore.getKey(keyAlias, keyPass) as PrivateKey
+        } catch (UnrecoverableKeyException e) {
+            throw new IllegalStateException("Private key '${keyAlias}' in ${certificateSource()} could not be read: the key password is wrong. " +
+                    'If the key entry has a different password than the keystore, set certificateKeyPassword', e)
+        }
         X509Certificate certificate = keyStore.getCertificate(keyAlias) as X509Certificate
         if (!privateKey || !certificate) {
             throw new IllegalStateException("No private key/certificate found in ${certificateSource()} for alias '${keyAlias}'")

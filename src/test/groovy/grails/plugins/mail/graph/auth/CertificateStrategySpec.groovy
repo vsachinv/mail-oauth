@@ -20,6 +20,9 @@ class CertificateStrategySpec extends Specification {
     @Shared File pfx
     @Shared String password = 'changeit'
     @Shared String alias = 'mailcert'
+    @Shared String keyPassword = 'keysecret'
+    @Shared File pfxWithKeyPassword
+    @Shared File jksWithKeyPassword
 
     def setupSpec() {
         pfx = new File(tempDir, 'test.pfx')
@@ -28,6 +31,23 @@ class CertificateStrategySpec extends Specification {
                     '-dname', 'CN=mail-oauth-test', '-validity', '1'].execute()
         proc.waitFor()
         assert proc.exitValue() == 0, "keytool failed: ${proc.err.text}"
+
+        // keytool ignores -keypass for PKCS12, so build a keystore whose key entry really has its own
+        // password programmatically (what openssl/BouncyCastle produce), plus a JKS with -keypass.
+        KeyStore src = KeyStore.getInstance('PKCS12')
+        pfx.withInputStream { src.load(it, password.toCharArray()) }
+        KeyStore out = KeyStore.getInstance('PKCS12')
+        out.load(null, null)
+        out.setKeyEntry(alias, src.getKey(alias, password.toCharArray()), keyPassword.toCharArray(), src.getCertificateChain(alias))
+        pfxWithKeyPassword = new File(tempDir, 'keypass.pfx')
+        pfxWithKeyPassword.withOutputStream { out.store(it, password.toCharArray()) }
+
+        jksWithKeyPassword = new File(tempDir, 'keypass.jks')
+        def jks = ['keytool', '-genkeypair', '-alias', alias, '-keyalg', 'RSA', '-keysize', '2048',
+                   '-storetype', 'JKS', '-keystore', jksWithKeyPassword.absolutePath, '-storepass', password, '-keypass', keyPassword,
+                   '-dname', 'CN=mail-oauth-test-jks', '-validity', '1'].execute()
+        jks.waitFor()
+        assert jks.exitValue() == 0, "keytool (JKS) failed: ${jks.err.text}"
     }
 
     void "factory picks CertificateStrategy only when useCertAuth is set"() {
@@ -97,6 +117,73 @@ class CertificateStrategySpec extends Specification {
         then:
         def e = thrown(IllegalStateException)
         e.message.contains('certificatePath')
+    }
+
+    void "private key with its own password is read when certificateKeyPassword is set: #label"() {
+        given:
+        def strategy = new CertificateStrategy('c', 't', store.absolutePath, null, password, keyPassword, alias, 's')
+
+        when:
+        String assertion = strategy.buildClientAssertion()
+        String[] parts = assertion.split('\\.')
+        KeyStore ks = KeyStore.getInstance(type)
+        store.withInputStream { ks.load(it, password.toCharArray()) }
+        Signature verifier = Signature.getInstance('SHA256withRSA')
+        verifier.initVerify((ks.getCertificate(alias) as X509Certificate).publicKey)
+        verifier.update("${parts[0]}.${parts[1]}".getBytes('US-ASCII'))
+
+        then:
+        jwtHeader(assertion).alg == 'RS256'
+        verifier.verify(Base64.urlDecoder.decode(parts[2]))
+
+        where:
+        label                       | store              | type
+        'PKCS12 with key password'  | pfxWithKeyPassword | 'PKCS12'
+        'JKS with -keypass'         | jksWithKeyPassword | 'JKS'
+    }
+
+    void "private key with its own password fails clearly when only the store password is given: #label"() {
+        when:
+        new CertificateStrategy('c', 't', store.absolutePath, password, alias, 's').buildClientAssertion()
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message.contains('certificateKeyPassword')
+        e.message.contains(alias)
+        !e.message.contains(password)
+        !e.message.contains(keyPassword)
+        e.cause instanceof java.security.UnrecoverableKeyException
+
+        where:
+        label                       | store
+        'PKCS12 with key password'  | pfxWithKeyPassword
+        'JKS with -keypass'         | jksWithKeyPassword
+    }
+
+    void "blank certificateKeyPassword falls back to the store password"() {
+        expect:
+        jwtHeader(new CertificateStrategy('c', 't', pfx.absolutePath, null, password, blank, alias, 's').buildClientAssertion()).x5t == expectedThumbprint()
+
+        where:
+        blank << [null, '']
+    }
+
+    void "sender config and GraphConfig pass certificateKeyPassword to the strategy"() {
+        given:
+        ConfigObject cfg = new ConfigObject()
+        cfg.oAuth.useCertAuth = true
+        cfg.oAuth.client_id = 'c'
+        cfg.oAuth.tenant_id = 't'
+        cfg.oAuth.api_scope = 's'
+        cfg.oAuth.certificatePath = pfxWithKeyPassword.absolutePath
+        cfg.oAuth.certificatePassword = password
+        cfg.oAuth.certificateKeyPassword = keyPassword
+        GraphConfig graphCfg = new GraphConfig(configName: 'cfg', tenantId: 1L, clientId: 'c', graphTenantId: 't', scopes: 's',
+                useCertAuth: true, certificatePath: pfxWithKeyPassword.absolutePath, certificatePassword: password, certificateKeyPassword: keyPassword)
+
+        expect:
+        jwtHeader(((CertificateStrategy) GraphAuthStrategyFactory.build(cfg, true)).buildClientAssertion()).alg == 'RS256'
+        jwtHeader(((CertificateStrategy) GraphAuthStrategyFactory.build(graphCfg)).buildClientAssertion()).alg == 'RS256'
     }
 
     private String expectedThumbprint() {

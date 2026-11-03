@@ -75,7 +75,8 @@ Graph call: `POST /users/{username}/sendMail`. No user ever signs in.
 | `oAuth.useCertAuth` | yes, `true` | Selects `CertificateStrategy` |
 | `oAuth.certificatePath` **or** `oAuth.certificateBase64` | yes, one of them | File path to the PFX, or its bytes base64 encoded. Base64 wins if both are set |
 | `oAuth.api_scope` | yes | **Also required in the tenant block.** `CertificateStrategy` reads the scope from the tenant config and throws without it. This is the one key that is both global and per tenant |
-| `oAuth.certificatePassword` | only if the PFX has one | |
+| `oAuth.certificatePassword` | only if the PFX has one | Keystore (store) password |
+| `oAuth.certificateKeyPassword` | only if the key entry has its own password | Defaults to `certificatePassword`. Needed for openssl/BouncyCastle built PKCS12 or JKS with `-keypass`; `keytool` PKCS12 files always use the store password |
 | `oAuth.certificateAlias` | no | First alias in the keystore is used if omitted |
 | `oAuth.secret_val` | no | Not used in this mode |
 
@@ -218,6 +219,7 @@ tenant_45.grails.mail.oAuth.enabled  = false
 | `oAuth.useCertAuth` | `true` | — | — | — |
 | `oAuth.certificatePath` / `certificateBase64` | one required | — | — | — |
 | `oAuth.certificatePassword` | if PFX has one | — | — | — |
+| `oAuth.certificateKeyPassword` | if key password differs | — | — | — |
 | `oAuth.certificateAlias` | optional | — | — | — |
 | `oAuth.secret_val` | — | required | required | — |
 | `oAuth.api_scope` in tenant block | **required** | — | — | — |
