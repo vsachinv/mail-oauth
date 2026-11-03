@@ -16,6 +16,7 @@ class GraphAuthStrategyFactory {
                     config.getProperty('grails.mail.oAuth.certificatePath'),
                     config.getProperty('grails.mail.oAuth.certificateBase64', String, null),
                     config.getProperty('grails.mail.oAuth.certificatePassword', String, null),
+                    config.getProperty('grails.mail.oAuth.certificateKeyPassword', String, null),
                     config.getProperty('grails.mail.oAuth.certificateAlias', String, null),
                     config.getProperty('grails.mail.oAuth.api_scope')
             )
@@ -31,6 +32,7 @@ class GraphAuthStrategyFactory {
                     graphConfig.certificatePath,
                     graphConfig.certificateBase64,
                     graphConfig.certificatePassword,
+                    graphConfig.certificateKeyPassword,
                     graphConfig.certificateAlias,
                     graphConfig.scopes
             )

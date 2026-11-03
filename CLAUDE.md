@@ -61,6 +61,7 @@ All under `grails.mail` in `application.yml`:
 | `oAuth.useCertAuth` | Use a PFX certificate (signed JWT client assertion) instead of `secret_val`; requires `daemon: true` |
 | `oAuth.certificatePath / certificatePassword / certificateAlias` | PFX keystore location, password and key alias for certificate auth |
 | `oAuth.certificateBase64` | PFX bytes base64 encoded, alternative to `certificatePath` (wins when both set); never log it |
+| `oAuth.certificateKeyPassword` | Private key entry password when it differs from the store password; defaults to `certificatePassword` |
 | `oAuth.client_id / secret_val / tenant_id` | Azure AD app credentials |
 | `oAuth.api_scope` | OAuth scopes |
 | `oAuth.graph.attachmentMax` | Max attachment size in MB (Graph sender) |

@@ -156,6 +156,7 @@ grails:
       certificatePath: /etc/app/mail-oauth.pfx
       # certificateBase64: ${MAIL_OAUTH_PFX_B64}  # alternative to certificatePath; wins when both are set
       certificatePassword: ${MAIL_OAUTH_PFX_PASSWORD}
+      # certificateKeyPassword: ${MAIL_OAUTH_KEY_PASSWORD}  # only if the key entry has its own password
       certificateAlias: mailcert                 # optional
       graph:
         enabled: true
@@ -242,6 +243,7 @@ Common errors:
 | `certificateBase64 is not valid base64` | Value corrupted or wrapped in quotes/PEM headers; re-encode the PFX bytes only |
 | `IOException` on keystore load with `certificateBase64` | Value decodes but is not a PKCS#12 keystore, or wrong `certificatePassword` |
 | `No private key/certificate found ... for alias` | `certificateAlias` does not match an entry in the PFX |
+| `Private key '...' could not be read: the key password is wrong` | The key entry has a different password than the keystore (openssl/BouncyCastle built PKCS12, or JKS created with `-keypass`). Set `certificateKeyPassword`. Note `keytool` ignores `-keypass` for PKCS12, so keytool-made PFX files never need it |
 
 ---
 

@@ -34,6 +34,7 @@ grails:
       certificatePath: /etc/app/mail-oauth.pfx
       # certificateBase64: ${MAIL_OAUTH_PFX_B64}   # alternative to certificatePath; wins when both are set
       certificatePassword: <pfx-password>
+      # certificateKeyPassword: <key-password>   # only if the key entry's password differs from the store password
       certificateAlias: mailcert           # optional, first alias used if omitted
       graph:
         enabled: true
@@ -48,6 +49,7 @@ Replace the four certificate keys with `secret_val: <client-secret>` to use a cl
 | `daemon` | App-only client-credentials flow, no user login |
 | `useCertAuth` | Use a PFX certificate instead of `secret_val`; requires `daemon: true` |
 | `certificatePath` / `certificatePassword` / `certificateAlias` | PFX keystore location, password and key alias |
+| `certificateKeyPassword` | Private key entry password, only when it differs from the store password (openssl/BouncyCastle PKCS12, JKS with `-keypass`); defaults to `certificatePassword` |
 | `certificateBase64` | PFX bytes base64 encoded (line-wrapped OK), for vault/env-injected secrets; takes precedence over `certificatePath`. It is the private key: never commit or log it |
 | `client_id` / `tenant_id` / `secret_val` | Azure app credentials |
 | `grails.mail.disabled` (top level, not under `oAuth`) | Standard Grails Mail switch: `sendMail` logs "Sending emails disabled by configuration option" and returns `null`. This plugin only swaps the sender/builder beans, so the check in Grails Mail's `MailService` still applies to every send. `/mailOAuth/sendTestMail` then reports "Mail sending is disabled by configuration" instead of success |
@@ -55,7 +57,7 @@ Replace the four certificate keys with `secret_val: <client-secret>` to use a cl
 | `callback_url` | Redirect URI registered in Azure, used for consent and interactive login |
 
 The mail reader takes the same options per mailbox through a `GraphConfig` object
-(`daemon`, `useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateAlias`, `emailAddress`).
+(`daemon`, `useCertAuth`, `certificatePath` or `certificateBase64`, `certificatePassword`, `certificateKeyPassword`, `certificateAlias`, `emailAddress`).
 
 ### Azure setup
 

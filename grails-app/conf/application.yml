@@ -136,6 +136,7 @@ grails:
             useCertAuth: false
             certificatePath:           # path to PFX certificate file
             certificatePassword:       # password for PFX file
+            certificateKeyPassword:    # private key password, only if it differs from the store password
             certificateAlias:          # alias of the key entry within the PFX keystore
             redirect:
                 uri: /mailOAuth/index

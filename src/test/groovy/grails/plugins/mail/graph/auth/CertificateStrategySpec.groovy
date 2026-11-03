@@ -1,9 +1,11 @@
 package grails.plugins.mail.graph.auth
 
+import grails.config.Config
 import grails.plugins.mail.graph.GraphConfig
 import groovy.json.JsonSlurper
 import spock.lang.Shared
 import spock.lang.Specification
+import org.grails.config.PropertySourcesConfig
 import spock.lang.TempDir
 
 import java.security.KeyStore
@@ -20,6 +22,9 @@ class CertificateStrategySpec extends Specification {
     @Shared File pfx
     @Shared String password = 'changeit'
     @Shared String alias = 'mailcert'
+    @Shared String keyPassword = 'keysecret'
+    @Shared File pfxWithKeyPassword
+    @Shared File jksWithKeyPassword
 
     def setupSpec() {
         pfx = new File(tempDir, 'test.pfx')
@@ -28,6 +33,23 @@ class CertificateStrategySpec extends Specification {
                     '-dname', 'CN=mail-oauth-test', '-validity', '1'].execute()
         proc.waitFor()
         assert proc.exitValue() == 0, "keytool failed: ${proc.err.text}"
+
+        // keytool ignores -keypass for PKCS12, so build a keystore whose key entry really has its own
+        // password programmatically (what openssl/BouncyCastle produce), plus a JKS with -keypass.
+        KeyStore src = KeyStore.getInstance('PKCS12')
+        pfx.withInputStream { src.load(it, password.toCharArray()) }
+        KeyStore out = KeyStore.getInstance('PKCS12')
+        out.load(null, null)
+        out.setKeyEntry(alias, src.getKey(alias, password.toCharArray()), keyPassword.toCharArray(), src.getCertificateChain(alias))
+        pfxWithKeyPassword = new File(tempDir, 'keypass.pfx')
+        pfxWithKeyPassword.withOutputStream { out.store(it, password.toCharArray()) }
+
+        jksWithKeyPassword = new File(tempDir, 'keypass.jks')
+        def jks = ['keytool', '-genkeypair', '-alias', alias, '-keyalg', 'RSA', '-keysize', '2048',
+                   '-storetype', 'JKS', '-keystore', jksWithKeyPassword.absolutePath, '-storepass', password, '-keypass', keyPassword,
+                   '-dname', 'CN=mail-oauth-test-jks', '-validity', '1'].execute()
+        jks.waitFor()
+        assert jks.exitValue() == 0, "keytool (JKS) failed: ${jks.err.text}"
     }
 
     void "factory picks CertificateStrategy only when useCertAuth is set"() {
@@ -97,6 +119,77 @@ class CertificateStrategySpec extends Specification {
         then:
         def e = thrown(IllegalStateException)
         e.message.contains('certificatePath')
+    }
+
+    void "private key with its own password is read when certificateKeyPassword is set: #label"() {
+        given:
+        def strategy = new CertificateStrategy('c', 't', store.absolutePath, null, password, keyPassword, alias, 's')
+
+        when:
+        String assertion = strategy.buildClientAssertion()
+        String[] parts = assertion.split('\\.')
+        KeyStore ks = KeyStore.getInstance(type)
+        store.withInputStream { ks.load(it, password.toCharArray()) }
+        Signature verifier = Signature.getInstance('SHA256withRSA')
+        verifier.initVerify((ks.getCertificate(alias) as X509Certificate).publicKey)
+        verifier.update("${parts[0]}.${parts[1]}".getBytes('US-ASCII'))
+
+        then:
+        jwtHeader(assertion).alg == 'RS256'
+        verifier.verify(Base64.urlDecoder.decode(parts[2]))
+
+        where:
+        label                       | store              | type
+        'PKCS12 with key password'  | pfxWithKeyPassword | 'PKCS12'
+        'JKS with -keypass'         | jksWithKeyPassword | 'JKS'
+    }
+
+    void "private key with its own password fails clearly when only the store password is given: #label"() {
+        when:
+        new CertificateStrategy('c', 't', store.absolutePath, password, alias, 's').buildClientAssertion()
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message.contains('certificateKeyPassword')
+        e.message.contains(alias)
+        !e.message.contains(password)
+        !e.message.contains(keyPassword)
+        e.cause instanceof java.security.UnrecoverableKeyException
+
+        where:
+        label                       | store
+        'PKCS12 with key password'  | pfxWithKeyPassword
+        'JKS with -keypass'         | jksWithKeyPassword
+    }
+
+    void "blank certificateKeyPassword falls back to the store password"() {
+        expect:
+        jwtHeader(new CertificateStrategy('c', 't', pfx.absolutePath, null, password, blank, alias, 's').buildClientAssertion()).x5t == expectedThumbprint()
+
+        where:
+        blank << [null, '']
+    }
+
+    void "sender config and GraphConfig pass certificateKeyPassword to the strategy"() {
+        given:
+        GraphConfig graphCfg = new GraphConfig(useCertAuth: true, clientId: 'c', tenantId: 't', scopes: 's',
+                certificatePath: pfxWithKeyPassword.absolutePath, certificatePassword: password, certificateKeyPassword: keyPassword)
+
+        expect:
+        jwtHeader(((CertificateStrategy) GraphAuthStrategyFactory.build(senderConfig([
+                'grails.mail.oAuth.useCertAuth'           : true,
+                'grails.mail.oAuth.client_id'             : 'c',
+                'grails.mail.oAuth.tenant_id'             : 't',
+                'grails.mail.oAuth.api_scope'             : 's',
+                'grails.mail.oAuth.certificatePath'       : pfxWithKeyPassword.absolutePath,
+                'grails.mail.oAuth.certificatePassword'   : password,
+                'grails.mail.oAuth.certificateKeyPassword': keyPassword,
+        ]))).buildClientAssertion()).alg == 'RS256'
+        jwtHeader(((CertificateStrategy) GraphAuthStrategyFactory.build(graphCfg)).buildClientAssertion()).alg == 'RS256'
+    }
+
+    private static Config senderConfig(Map props) {
+        new PropertySourcesConfig(props)
     }
 
     private String expectedThumbprint() {
