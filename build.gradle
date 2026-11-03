@@ -75,6 +75,15 @@ task sourceJar(type: Jar) {
 
 compileJava.options.release = 17
 
+// Pin the JDK Gradle compiles and tests with, independent of the JVM that launched Gradle
+// (IDE Gradle JVM, JAVA_HOME, sdkman). Gradle auto-detects installed JDKs (sdkman, /Library/Java,
+// JAVA_HOME); it will not download one unless a toolchain resolver plugin is added to settings.gradle.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
 // https://github.com/apache/grails-core/issues/15321
 tasks.withType(GroovyCompile).configureEach {
     groovyOptions.optimizationOptions.indy = false

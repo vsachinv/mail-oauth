@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-The machine default `java` is Java 8 — builds **require JDK 17** (e.g. sdkman `17.0.6-zulu`). `gradlew` may lack the execute bit; invoke via `sh`:
+Builds **require JDK 17**. `build.gradle` pins a Java 17 toolchain, so compile and test run on an installed JDK 17 regardless of the JVM that launches Gradle (IDE Gradle JVM, `JAVA_HOME`, sdkman); Gradle itself still needs Java 17 or newer to start (the machine default `java` is Java 8, so use e.g. sdkman `17.0.6-zulu`). No toolchain resolver plugin is configured, so JDK 17 must already be installed. `gradlew` may lack the execute bit; invoke via `sh`:
 
 ```bash
 sh ./gradlew clean build            # build + test, JAR in build/libs/
