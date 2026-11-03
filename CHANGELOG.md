@@ -22,6 +22,9 @@ Versions correspond to the `version` property in `gradle.properties` and the art
 - **Interactive consent forces a fresh sign-in** (PVCM-135865): `MailOAuthService.generateAuthCodeURL` adds `prompt=login` to the Microsoft authorize URL, so the browser session is not reused when generating a token. Not configurable.
 - **Graph requests ask for immutable ids** (PVCM-130835): `GraphApiClient` registers `ImmutableIdHeaderInterceptor`, which adds `Prefer: IdType="ImmutableId"` to every outbound Graph call. Message ids no longer rotate when a message is flagged, moved or patched. Ids obtained with earlier versions are in the old format and will not match the ids returned now; treat any persisted Graph message ids as stale after upgrading. Always on, not configurable.
 
+### Fixed
+- **Tenant `props` leaked across tenants.** `TenantMailConfigResolverService` handed the live global `grails.mail.props` map to `ConfigObject.merge`, which merges map entries in place, so every tenant's `props` were written into the global map and inherited by every other tenant for the life of the JVM (a tenant could add a prop but never remove one another tenant had set). The resolver now deep-copies the global `props` and clones the tenant block before merging, so application config is never mutated.
+
 ### Compatibility notes
 - No behaviour change for existing secret-based tenants (interactive or daemon). `GraphConfig` `serialVersionUID` is unchanged.
 
