@@ -3,6 +3,17 @@
 All notable changes to the `mail-oauth` plugin are documented here.
 Versions correspond to the `version` property in `gradle.properties` and the artifacts published to RxLogix Nexus as `org.grails.plugins:mail-oauth:<version>`.
 
+## 7.6.0-M4 — 2026-11-03
+
+### Added
+- `certificateKeyPassword` (sender config and `GraphConfig`): password of the private key entry when it differs from the keystore password (PKCS12 built with openssl/BouncyCastle, or a JKS created with `-keypass`). Defaults to `certificatePassword`. A wrong key password now fails with an `IllegalStateException` naming `certificateKeyPassword` instead of a bare `UnrecoverableKeyException`. JKS keystores load through the same code path on JDK 9+.
+
+### Fixed
+- **Tenant `props` leaked across tenants.** `TenantMailConfigResolverService` handed the live global `grails.mail.props` map to `ConfigObject.merge`, which merges map entries in place, so every tenant's `props` were written into the global map and inherited by every other tenant for the life of the JVM (a tenant could add a prop but never remove one another tenant had set). The resolver now deep-copies the global `props` and clones the tenant block before merging, so application config is never mutated.
+
+### Compatibility notes
+- Drop-in replacement for 7.6.0-M3: no config key changed meaning. Tenants that relied on another tenant's `props` leaking into theirs (unintentionally) will now see only the global `grails.mail.props` plus their own; set the props explicitly per tenant if needed.
+
 ## 7.6.0-M3 — 2026-10-23
 
 ### Added
@@ -10,7 +21,6 @@ Versions correspond to the `version` property in `gradle.properties` and the art
 - New `GraphAuthStrategy` abstraction (`grails.plugins.mail.graph.auth`) with `SecretKeyStrategy` (existing ScribeJava flow) and `CertificateStrategy`, selected by `GraphAuthStrategyFactory`. `TenantOAuthContext` now carries the resolved strategy.
 - New per-tenant sender config keys under `grails.mail.oAuth` / `tenant_<id>.grails.mail.oAuth`: `useCertAuth`, `certificatePath`, `certificatePassword`, `certificateAlias`. Matching fields on `GraphConfig` for the reader. Tenants may mix credential types.
 - `certificateBase64` (sender config and `GraphConfig`): the PFX keystore bytes base64 encoded, as an alternative to `certificatePath` for vault/environment-injected secrets. Takes precedence over the path; strict decoding; never logged.
-- `certificateKeyPassword` (sender config and `GraphConfig`): password of the private key entry when it differs from the keystore password (PKCS12 built with openssl/BouncyCastle, or a JKS created with `-keypass`). Defaults to `certificatePassword`. A wrong key password now fails with an `IllegalStateException` naming `certificateKeyPassword` instead of a bare `UnrecoverableKeyException`. JKS keystores load through the same code path on JDK 9+.
 - `SETUP_GUIDE.md` with the Entra ID registration, permission, admin-consent, certificate creation and rotation steps; `design_certificate.md` with the strategy design.
 - Tests: `CertificateStrategySpec` (JWT header/claims/`x5t`/signature, factory selection) and `AuthModeConfigurationSpec` (real ScribeJava construction for every auth mode on the multi-tenant sender and the reader).
 
@@ -22,9 +32,6 @@ Versions correspond to the `version` property in `gradle.properties` and the art
 - `GraphEmailReaderService` and `InMemoryReaderTokenStoreService` treat `useCertAuth` like `daemon` (app-only `users/{email}` access, automatic token acquisition).
 - **Interactive consent forces a fresh sign-in** (PVCM-135865): `MailOAuthService.generateAuthCodeURL` adds `prompt=login` to the Microsoft authorize URL, so the browser session is not reused when generating a token. Not configurable.
 - **Graph requests ask for immutable ids** (PVCM-130835): `GraphApiClient` registers `ImmutableIdHeaderInterceptor`, which adds `Prefer: IdType="ImmutableId"` to every outbound Graph call. Message ids no longer rotate when a message is flagged, moved or patched. Ids obtained with earlier versions are in the old format and will not match the ids returned now; treat any persisted Graph message ids as stale after upgrading. Always on, not configurable.
-
-### Fixed
-- **Tenant `props` leaked across tenants.** `TenantMailConfigResolverService` handed the live global `grails.mail.props` map to `ConfigObject.merge`, which merges map entries in place, so every tenant's `props` were written into the global map and inherited by every other tenant for the life of the JVM (a tenant could add a prop but never remove one another tenant had set). The resolver now deep-copies the global `props` and clones the tenant block before merging, so application config is never mutated.
 
 ### Compatibility notes
 - No behaviour change for existing secret-based tenants (interactive or daemon). `GraphConfig` `serialVersionUID` is unchanged.

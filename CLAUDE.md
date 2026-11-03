@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Stack: Apache Grails 7.0.16, Groovy 4 (via BOM), **JDK 17** (hard requirement — `compileJava.options.release = 17`), Gradle 8.14.4 wrapper, Spring Boot 3.5.x, Jakarta EE.
 - The Gradle plugin comes from a `buildscript {}` block (`org.apache.grails.gradle.grails-plugin`), and versions are managed by `org.apache.grails:grails-bom`. Core module groups differ: `org.apache.grails`, `org.apache.grails.web`, `org.apache.grails.views`.
 - OAuth is done with ScribeJava (`MicrosoftAzureActiveDirectory20Api`); Graph calls use the `com.microsoft.graph:microsoft-graph:6.+` SDK.
-- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M3`, the Grails 7 build line; see `CHANGELOG.md`).
+- Published as `org.grails.plugins:mail-oauth:<version>` to RxLogix Nexus. Version lives in `gradle.properties` (currently `7.6.0-M4`, the Grails 7 build line; see `CHANGELOG.md`).
 
 ## Commands
 

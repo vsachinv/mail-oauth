@@ -11,7 +11,7 @@ A Grails plugin that adds the capability to send emails using the Microsoft Grap
 | Groovy              | 4 (managed by `org.apache.grails:grails-bom`)            |
 | Group               | `org.grails.plugins`                                      |
 | Artifact            | `mail-oauth`                                              |
-| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M3`)           |
+| Current Version     | Refer to `gradle.properties` (e.g. `7.6.0-M4`)           |
 | Repository          | RxLogix Nexus                                             |
 
 > **Grails 7 upgrade note:** This plugin was migrated from Grails 6.2.0 / JDK 11 to Apache Grails 7.0.16 / JDK 17. The Maven group of core dependencies moved to `org.apache.grails`, the Grails Mail plugin is now `org.apache.grails:grails-mail` (7.0.x, Jakarta Mail based, versioned with Grails), and all `javax.*` EE imports became `jakarta.*`.
@@ -22,7 +22,8 @@ Pick the plugin version that matches your host application's Grails major versio
 
 | Plugin version         | Grails    | JDK | Groovy   | Servlet / Mail namespace | Grails Mail plugin                 | Status          |
 |------------------------|-----------|-----|----------|--------------------------|------------------------------------|-----------------|
-| `7.6.0-M3` (current)   | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Active (Grails 7) — adds certificate auth |
+| `7.6.0-M4` (current)   | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Active (Grails 7) — adds `certificateKeyPassword`, fixes tenant `props` leak |
+| `7.6.0-M3`             | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Superseded by 7.6.0-M4 — added certificate auth |
 | `7.6.0-M2`             | 7.0.16    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.apache.grails:grails-mail` 7.0.16 | Superseded by 7.6.0-M3 |
 | `7.6.0-M1`             | 7.0.14    | 17  | 4.x      | Jakarta EE (`jakarta.*`) | `org.grails.plugins:grails-mail` 5.0.3 | Superseded by 7.6.0-M2 |
 | `7.5-JDK11-1.0-M10`    | 6.2.0     | 11  | 3.0.23   | Java EE (`javax.*`)      | `org.grails.plugins:mail` 4.0.0    | Maintenance (last Grails 6.x) |
